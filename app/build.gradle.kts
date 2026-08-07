@@ -1,11 +1,24 @@
-import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+import com.android.build.api.variant.FilterConfiguration
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
+import java.util.Properties
+
+val keystoreProperties = Properties()
+val termuxGradleProps = File(System.getProperty("user.home"), ".gradle/gradle.properties")
+if (termuxGradleProps.exists()) {
+    keystoreProperties.load(termuxGradleProps.reader())
+}
+
+val termuxKeystore = keystoreProperties.getProperty("TERMUX_KEYSTORE")
+val termuxKeyAlias = keystoreProperties.getProperty("TERMUX_KEY_ALIAS")
+val termuxStorePassword = keystoreProperties.getProperty("TERMUX_STORE_PASSWORD")
+val termuxKeyPassword = keystoreProperties.getProperty("TERMUX_KEY_PASSWORD")
+val hasTermuxReleaseSigning = termuxKeystore != null && termuxKeyAlias != null && termuxStorePassword != null && termuxKeyPassword != null
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
     id("com.google.devtools.ksp") version AndroidConfig.kspVersion
     id("dev.rikka.tools.refine") version AndroidConfig.rikkaRefineVersion
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
@@ -31,16 +44,23 @@ android {
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime()}\"")
         buildConfigField("boolean", "PREVIEW", "false")
         buildConfigField("boolean", "PLUGIN", "false")
+    }
 
-        externalNativeBuild {
-            cmake {
-                arguments.addAll(listOf("-DANDROID_ARM_NEON=ON"))
-                cFlags.add("-std=gnu11 -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration")
-            }
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
+    }
 
-        ndk {
-            abiFilters += SUPPORTED_ABIS
+    signingConfigs {
+        if (hasTermuxReleaseSigning) {
+            create("termuxRelease") {
+                storeFile = file(termuxKeystore)
+                keyAlias = termuxKeyAlias
+                storePassword = termuxStorePassword
+                keyPassword = termuxKeyPassword
+            }
         }
     }
 
@@ -48,19 +68,11 @@ android {
         getByName("debug") {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-${getCommitCount()}"
-            manifestPlaceholders["crashlyticsCollectionEnabled"] = "false"
         }
         getByName("release") {
-            manifestPlaceholders += mapOf("crashlyticsCollectionEnabled" to "true")
-            configure<CrashlyticsExtension> {
-                nativeSymbolUploadEnabled = true
-                mappingFileUploadEnabled = false
-            }
-
-            //proguardFiles("proguard-android-optimize.txt", "proguard-rules.pro")
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("termuxRelease")
         }
         create("preview") {
             initWith(getByName("release"))
@@ -78,7 +90,6 @@ android {
         create("fdroid") {
             dimension = "dependencies"
             buildConfigField("boolean", "FOSS_ONLY", "true")
-            android.defaultConfig.externalNativeBuild.cmake.arguments += "-DNO_CRASHLYTICS=1"
         }
         create("full") {
             dimension = "dependencies"
@@ -99,8 +110,7 @@ android {
             dimension = "version"
 
             manifestPlaceholders["label"] = "JamesDSP"
-            project.setProperty("archivesBaseName", "JamesDSP-v${AndroidConfig.versionName}-${AndroidConfig.versionCode}")
-            applicationId = "james.dsp"
+            applicationId = "com.termux.jdsp"
             AndroidConfig.minSdk = 26
             minSdk = AndroidConfig.minSdk
             buildConfigField("boolean", "ROOTLESS", "false")
@@ -154,24 +164,7 @@ android {
         shaders = false
     }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
     namespace = "me.timschneeberger.rootlessjamesdsp"
-}
-
-// Hooks to upload native symbols to crashlytics automatically
-afterEvaluate {
-    getTasksByName("bundleRootlessFullRelease", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootlessFullRelease")
-    getTasksByName("bundleRootFullRelease", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootFullRelease")
-    getTasksByName("assembleRootlessFullRelease", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootlessFullRelease")
-    getTasksByName("assembleRootFullRelease", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootFullRelease")
-
-    getTasksByName("assembleRootlessFullPreview", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootlessFullRelease")
-    getTasksByName("assembleRootFullPreview", false).firstOrNull()?.finalizedBy("uploadCrashlyticsSymbolFileRootFullRelease")
 }
 
 dependencies {

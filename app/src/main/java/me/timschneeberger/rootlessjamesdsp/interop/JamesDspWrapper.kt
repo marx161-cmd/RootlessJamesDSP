@@ -31,7 +31,7 @@ object JamesDspWrapper {
     external fun setPostGain(self: JamesDspHandle, postGain: Float): Boolean
     external fun setMultiEqualizer(self: JamesDspHandle, enable: Boolean, filterType: Int, interpolationMode: Int, bands: DoubleArray): Boolean
     external fun setVdc(self: JamesDspHandle, enable: Boolean, vdcContents: String): Boolean
-    external fun setCompander(self: JamesDspHandle, enable: Boolean, timeConstant: Float, granularity: Int, tfResolution: Int, bands: DoubleArray): Boolean
+    external fun setCompander(self: JamesDspHandle, enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     external fun setReverb(self: JamesDspHandle, enable: Boolean, preset: Int): Boolean
     external fun setConvolver(self: JamesDspHandle, enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int): Boolean
     external fun setGraphicEq(self: JamesDspHandle, enable: Boolean, graphicEq: String): Boolean

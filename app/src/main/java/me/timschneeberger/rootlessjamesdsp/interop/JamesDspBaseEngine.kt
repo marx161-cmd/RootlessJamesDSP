@@ -62,14 +62,16 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             cache.select(Constants.PREF_OUTPUT)
             val outputPostGain = cache.get(R.string.key_output_postgain, 0f)
             val limiterThreshold = cache.get(R.string.key_limiter_threshold, -0.1f)
-            val limiterRelease = cache.get(R.string.key_limiter_release, 60f)
+            val limiterRelease = cache.get(R.string.key_limiter_release, 5f)
 
             cache.select(Constants.PREF_COMPANDER)
             val compEnabled = cache.get(R.string.key_compander_enable, false)
-            val compTimeConst = cache.get(R.string.key_compander_timeconstant, 0.22f)
-            val compGranularity = cache.get(R.string.key_compander_granularity, 2f).toInt()
-            val compTfTransforms = cache.get(R.string.key_compander_tftransforms, "0").toInt()
-            val compResponse = cache.get(R.string.key_compander_response, "95.0;200.0;400.0;800.0;1600.0;3400.0;7500.0;0;0;0;0;0;0;0")
+            val compThreshold = cache.get(R.string.key_compander_threshold, -24f)
+            val compRatio = cache.get(R.string.key_compander_ratio, 4f)
+            val compKnee = cache.get(R.string.key_compander_knee, 1.0f)
+            val compAttack = cache.get(R.string.key_compander_attack, 5f)
+            val compRelease = cache.get(R.string.key_compander_release, 100f)
+            val compHold = cache.get(R.string.key_compander_hold, 10f)
 
             cache.select(Constants.PREF_BASS)
             val bassEnabled = cache.get(R.string.key_bass_enable, false)
@@ -126,7 +128,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
 
                 val result = when (it) {
                     Constants.PREF_OUTPUT -> setOutputControl(limiterThreshold, limiterRelease, outputPostGain)
-                    Constants.PREF_COMPANDER -> setCompander(compEnabled, compTimeConst, compGranularity, compTfTransforms, compResponse)
+                    Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
                     Constants.PREF_EQ -> setMultiEqualizer(eqEnabled, eqFilterType, eqInterpolationMode, eqBands)
                     Constants.PREF_GEQ -> setGraphicEqCombined(geqEnabled, geqBands, peqEnabled, peqBandsStr, peqPreamp)
@@ -168,21 +170,9 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
         return setMultiEqualizerInternal(enable, filterType, interpolationMode, doubleArray)
     }
 
-    fun setCompander(enable: Boolean, timeConstant: Float, granularity: Int, tfTransforms: Int, bands: String): Boolean
+    fun setCompander(enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     {
-        val doubleArray = DoubleArray(14)
-        val array = bands.split(";")
-        for((i, str) in array.withIndex())
-        {
-            val number = str.toDoubleOrNull()
-            if(number == null) {
-                Timber.e("setCompander: malformed string")
-                return false
-            }
-            doubleArray[i] = number
-        }
-
-        return setCompanderInternal(enable, timeConstant, granularity, tfTransforms, doubleArray)
+        return setCompanderInternal(enable, threshold, ratio, knee, attack, release, hold)
     }
 
     fun setVdc(enable: Boolean, vdcPath: String): Boolean
@@ -396,7 +386,10 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     abstract fun setVacuumTube(enable: Boolean, level: Float): Boolean
 
     protected abstract fun setMultiEqualizerInternal(enable: Boolean, filterType: Int, interpolationMode: Int, bands: DoubleArray): Boolean
-    protected abstract fun setCompanderInternal(enable: Boolean, timeConstant: Float, granularity: Int, tfTransforms: Int, bands: DoubleArray): Boolean
+    // Repointed at the real LSP compressor engine 2026-08-06 (cmd 10101) — was
+    // the Dynamic Range Compander's timeConstant/granularity/tfTransforms/
+    // bands params, which the native side no longer does anything with.
+    protected abstract fun setCompanderInternal(enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean

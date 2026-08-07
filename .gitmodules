@@ -4,3 +4,39 @@
 	branch = extensions
 [submodule "cpp/libjamesdsp"]
 	branch = extensions
+[submodule "app/src/main/cpp/lsp-plugins"]
+	path = app/src/main/cpp/lsp-plugins
+	url = https://github.com/lsp-plugins/lsp-plugins.git
+[submodule "app/src/main/cpp/lsp-dsp-lib"]
+	path = app/src/main/cpp/lsp-dsp-lib
+	url = https://github.com/lsp-plugins/lsp-dsp-lib.git
+[submodule "app/src/main/cpp/lsp-compressor"]
+	path = app/src/main/cpp/lsp-compressor
+	url = https://github.com/lsp-plugins/lsp-plugins-compressor.git
+[submodule "app/src/main/cpp/lsp-gate"]
+	path = app/src/main/cpp/lsp-gate
+	url = https://github.com/lsp-plugins/lsp-plugins-gate.git
+[submodule "app/src/main/cpp/lsp-limiter"]
+	path = app/src/main/cpp/lsp-limiter
+	url = https://github.com/lsp-plugins/lsp-plugins-limiter.git
+[submodule "app/src/main/cpp/lsp-mb-compressor"]
+	path = app/src/main/cpp/lsp-mb-compressor
+	url = https://github.com/lsp-plugins/lsp-plugins-mb-compressor.git
+[submodule "app/src/main/cpp/lsp-runtime"]
+	path = app/src/main/cpp/lsp-runtime
+	url = https://github.com/lsp-plugins/lsp-runtime-lib.git
+[submodule "app/src/main/cpp/lsp-dsp-units"]
+	path = app/src/main/cpp/lsp-dsp-units
+	url = https://github.com/lsp-plugins/lsp-dsp-units.git
+[submodule "app/src/main/cpp/lsp-common-lib"]
+	path = app/src/main/cpp/lsp-common-lib
+	url = https://github.com/lsp-plugins/lsp-common-lib.git
+[submodule "app/src/main/cpp/lsp-plugin-fw"]
+	path = app/src/main/cpp/lsp-plugin-fw
+	url = https://github.com/lsp-plugins/lsp-plugin-fw.git
+[submodule "app/src/main/cpp/lsp-plugins-shared"]
+	path = app/src/main/cpp/lsp-plugins-shared
+	url = https://github.com/lsp-plugins/lsp-plugins-shared.git
+[submodule "app/src/main/cpp/lsp-lltl-lib"]
+	path = app/src/main/cpp/lsp-lltl-lib
+	url = https://github.com/lsp-plugins/lsp-lltl-lib.git

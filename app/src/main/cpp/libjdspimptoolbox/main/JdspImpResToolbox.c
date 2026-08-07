@@ -6,6 +6,8 @@
 
 #include <jdsp_header.h>
 
+void HSHOResponse(double fs, double fc, unsigned int filterOrder, double gain, double overallGainDb, unsigned int queryPts, double *dispFreq, double *cplxRe, double *cplxIm);
+
 void channel_splitFloat(float *buffer, unsigned int num_frames, float **chan_buffers, unsigned int num_channels)
 {
 	unsigned int i, samples = num_frames * num_channels;

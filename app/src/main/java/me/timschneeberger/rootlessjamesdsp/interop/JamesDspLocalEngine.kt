@@ -132,12 +132,14 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
 
     override fun setCompanderInternal(
         enable: Boolean,
-        timeConstant: Float,
-        granularity: Int,
-        tfTransforms: Int,
-        bands: DoubleArray
+        threshold: Float,
+        ratio: Float,
+        knee: Float,
+        attack: Float,
+        release: Float,
+        hold: Float
     ): Boolean {
-        return JamesDspWrapper.setCompander(handle, enable, timeConstant, granularity, tfTransforms, bands)
+        return JamesDspWrapper.setCompander(handle, enable, threshold, ratio, knee, attack, release, hold)
     }
 
     override fun setVdcInternal(enable: Boolean, vdc: String): Boolean {

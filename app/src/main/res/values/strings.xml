@@ -75,19 +75,18 @@
     <!-- Main screen -->
     <string name="power_button_alt">Toggle audio processing</string>
 
-    <string name="compander_enable">Dynamic range compander</string>
-    <string name="compander_timeconstant">Time constant</string>
-    <string name="compander_granularity">Granularity</string>
-    <string name="compander_granularity_very_low">Very low</string>
-    <string name="compander_granularity_low">Low</string>
-    <string name="compander_granularity_medium">Medium</string>
-    <string name="compander_granularity_high">High</string>
-    <string name="compander_granularity_extreme">Extreme</string>
-    <string name="compander_tftransforms">Time-frequency transform</string>
-    <string name="compander_tftransforms_stft">Uniform (Short-time Fourier)</string>
-    <string name="compander_tftransforms_continuous_wavelet">Multiresolution (Continuous wavelet, incomplete dual frame)</string>
-    <string name="compander_tftransforms_undersampling">Pseudo multiresolution (Undersampling frame)</string>
-    <string name="compander_tftransforms_time_domain">Pseudo multiresolution (Time domain, zero latency)</string>
+    <!-- Repointed at the real LSP compressor engine 2026-08-06 — was the
+         Dynamic Range Compander (native code removed, these fields never
+         did anything), shadowed by a separate "LSP Dynamics" card that
+         actually worked. That card is gone now; this is the one real path. -->
+    <string name="compander_enable">Compressor</string>
+    <string name="compander_threshold">Threshold</string>
+    <string name="compander_ratio">Ratio</string>
+    <string name="compander_knee">Knee</string>
+    <string name="compander_attack">Attack</string>
+    <string name="compander_release">Release</string>
+    <string name="compander_hold">Hold</string>
+
     <string name="eq_enable">Multimodal equalizer</string>
     <string name="eq_filter_type">Filter type</string>
     <string name="eq_interpolator">Interpolator</string>

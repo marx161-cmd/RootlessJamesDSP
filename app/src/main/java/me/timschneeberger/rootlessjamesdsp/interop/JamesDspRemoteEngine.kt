@@ -129,17 +129,28 @@ class JamesDspRemoteEngine(
         ) == AudioEffect.SUCCESS
     }
 
+    // Sends AIDL cmd 10101 (native: jamesdsp.c, "Compressor: enabled,
+    // threshold, ratio, knee, attack, release, hold" — routes to the real
+    // LSP compressor via lsp_comp_configure()). Was cmd 115/1200, which
+    // fed the removed native Dynamic Range Compander code and did nothing.
+    // Native reads p[4] as a "band" index but never uses it (this engine
+    // has one broadband compressor instance, not per-band ones the cmd
+    // numbering's 10100/10101/10102 family suggests it was designed for)
+    // — sent as 0, and only once, not looped per-band like the code this
+    // replaced did (that looped 0..7 sending identical values 8 times).
     override fun setCompanderInternal(
         enable: Boolean,
-        timeConstant: Float,
-        granularity: Int,
-        tfTransforms: Int,
-        bands: DoubleArray
+        threshold: Float,
+        ratio: Float,
+        knee: Float,
+        attack: Float,
+        release: Float,
+        hold: Float
     ): Boolean {
-        return (effect.setParameterFloatArray(
-            115,
-            floatArrayOf(timeConstant, granularity.toFloat(), tfTransforms.toFloat()) + bands.map { it.toFloat() }
-        ) == AudioEffect.SUCCESS) and (effect.setParameter(1200, enable.toShort()) == AudioEffect.SUCCESS)
+        return effect.setParameterFloatArray(10101, floatArrayOf(
+            0f, if (enable) 1f else 0f,
+            threshold, ratio, knee, attack, release, hold
+        )) == AudioEffect.SUCCESS
     }
 
     override fun setReverb(enable: Boolean, preset: Int): Boolean {
@@ -322,4 +333,5 @@ class JamesDspRemoteEngine(
             }
         }
     }
+
 }

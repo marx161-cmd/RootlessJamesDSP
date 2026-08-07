@@ -81,19 +81,10 @@ class PreferenceGroupFragment : PreferenceFragmentCompat(), KoinComponent {
         requireContext().registerLocalReceiver(receiver, IntentFilter(Constants.ACTION_PRESET_LOADED))
 
         when(args.getInt(BUNDLE_XML_RES)) {
-            R.xml.dsp_compander_preferences -> {
-                findPreference<MaterialSeekbarPreference>(getString(R.string.key_compander_granularity))?.valueLabelOverride =
-                    fun(it: Float): String {
-                        return when(it.roundToInt()) {
-                            0 -> getString(R.string.compander_granularity_very_low)
-                            1 -> getString(R.string.compander_granularity_low)
-                            2 -> getString(R.string.compander_granularity_medium)
-                            3 -> getString(R.string.compander_granularity_high)
-                            4 -> getString(R.string.compander_granularity_extreme)
-                            else -> it.roundToInt().toString()
-                        }
-                    }
-            }
+            // dsp_compander_preferences's granularity-label formatter was
+            // removed with the granularity field itself 2026-08-06 — that
+            // card is real LSP compressor params now (threshold/ratio/
+            // knee/attack/release/hold), none of which need custom labels.
             R.xml.dsp_stereowide_preferences -> {
                 findPreference<MaterialSeekbarPreference>(getString(R.string.key_stereowide_mode))?.valueLabelOverride =
                     fun(it: Float): String {

@@ -86,11 +86,19 @@
     <string name="key_profile_active" translatable="false">profile_active</string> <!-- static -->
 
     <!-- DSP -->
+    <!-- Compander card repointed at the real LSP compressor engine (cmd 10101)
+         2026-08-06 — was the dead Dynamic Range Compander UI (cmd 115/1200,
+         native code removed) shadowed by a separate "LSP Dynamics" card that
+         actually worked. Deleted the LSP Dynamics card, rebuilt this one with
+         LSP's real parameters instead of reusing the old compander fields,
+         which don't correspond to anything the new engine takes. -->
     <string name="key_compander_enable" translatable="false">compander_enable</string>
-    <string name="key_compander_timeconstant" translatable="false">compander_timeconstant</string>
-    <string name="key_compander_granularity" translatable="false">compander_granularity</string>
-    <string name="key_compander_tftransforms" translatable="false">compander_tftransforms</string>
-    <string name="key_compander_response" translatable="false">compander_response</string>
+    <string name="key_compander_threshold" translatable="false">compander_threshold</string>
+    <string name="key_compander_ratio" translatable="false">compander_ratio</string>
+    <string name="key_compander_knee" translatable="false">compander_knee</string>
+    <string name="key_compander_attack" translatable="false">compander_attack</string>
+    <string name="key_compander_release" translatable="false">compander_release</string>
+    <string name="key_compander_hold" translatable="false">compander_hold</string>
 
     <string name="key_bass_enable" translatable="false">bass_enable</string>
     <string name="key_bass_max_gain" translatable="false">bass_max_gain</string>

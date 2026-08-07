@@ -23,6 +23,7 @@ find_library( # Sets the name of the path variable.
         log)
 
 target_include_directories(jdspimprestoolbox PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/)
+target_include_directories(jdspimprestoolbox PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/main)
 
 target_link_libraries( # Specifies the target library.
         jdspimprestoolbox

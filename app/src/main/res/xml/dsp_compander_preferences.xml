@@ -8,38 +8,69 @@
         android:icon="@drawable/ic_baseline_arrow_collapse_24dp"
         app:iconSpaceReserved="false">
         <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
-            android:key="@string/key_compander_timeconstant"
-            android:title="@string/compander_timeconstant"
-            android:defaultValue="0.22"
-            app:minValue="0.06"
-            app:maxValue="0.3"
-            app:unit="s"
+            android:key="@string/key_compander_threshold"
+            android:title="@string/compander_threshold"
+            android:defaultValue="-24"
+            app:minValue="-60"
+            app:maxValue="0"
+            app:unit="dB"
             app:allowDividerAbove="false"
             app:updatesContinuously="true"
             app:showSeekBarValue="true"
             app:iconSpaceReserved="false"/>
         <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
-            android:key="@string/key_compander_granularity"
-            android:title="@string/compander_granularity"
-            android:defaultValue="0"
-            app:maxValue="4"
+            android:key="@string/key_compander_ratio"
+            android:title="@string/compander_ratio"
+            android:defaultValue="4"
+            app:minValue="1"
+            app:maxValue="20"
+            app:unit=":1"
             app:allowDividerAbove="false"
             app:updatesContinuously="true"
-            app:precision="0"
-            app:seekBarIncrement="1"
             app:showSeekBarValue="true"
             app:iconSpaceReserved="false"/>
-        <ListPreference
-            android:key="@string/key_compander_tftransforms"
-            android:title="@string/compander_tftransforms"
-            android:defaultValue="0"
-            android:entries="@array/compander_tf_transforms"
-            android:entryValues="@array/compander_tf_transforms_values"
-            app:useSimpleSummaryProvider="true"
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_compander_knee"
+            android:title="@string/compander_knee"
+            android:defaultValue="1.0"
+            app:minValue="0.0"
+            app:maxValue="1.0"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
             app:iconSpaceReserved="false"/>
-        <me.timschneeberger.rootlessjamesdsp.preference.CompanderPreference
-            android:key="@string/key_compander_response"
-            android:defaultValue="95.0;200.0;400.0;800.0;1600.0;3400.0;7500.0;0;0;0;0;0;0;0"
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_compander_attack"
+            android:title="@string/compander_attack"
+            android:defaultValue="5"
+            app:minValue="0.1"
+            app:maxValue="200"
+            app:unit="ms"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false"/>
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_compander_release"
+            android:title="@string/compander_release"
+            android:defaultValue="100"
+            app:minValue="1"
+            app:maxValue="1000"
+            app:unit="ms"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false"/>
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_compander_hold"
+            android:title="@string/compander_hold"
+            android:defaultValue="10"
+            app:minValue="0"
+            app:maxValue="500"
+            app:unit="ms"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
             app:iconSpaceReserved="false"/>
     </me.timschneeberger.rootlessjamesdsp.preference.SwitchPreferenceGroup>
 </PreferenceScreen>

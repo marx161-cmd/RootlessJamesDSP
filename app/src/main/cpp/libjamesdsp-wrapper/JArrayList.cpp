@@ -5,7 +5,7 @@
 #include "JArrayList.h"
 
 #define TAG "JArrayList_JNI"
-#include <Log.h>
+#include "Log.h"
 
 JArrayList::JArrayList(JNIEnv* env) : IJavaObject(env)
 {

@@ -5,7 +5,7 @@
 #include "EelVmVariable.h"
 
 #define TAG "EelVmVariable_JNI"
-#include <Log.h>
+#include "Log.h"
 
 EelVmVariable::EelVmVariable(JNIEnv *env, const char *name, const char *value, bool isString) : IJavaObject(env) {
 

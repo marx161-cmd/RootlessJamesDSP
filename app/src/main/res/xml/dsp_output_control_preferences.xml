@@ -22,9 +22,9 @@
   <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
       android:key="@string/key_limiter_release"
       android:title="@string/output_limiter_release"
-      android:defaultValue="60"
-      app:minValue="1.5"
-      app:maxValue="500"
+      android:defaultValue="5"
+      app:minValue="0.25"
+      app:maxValue="20"
       app:unit="ms"
       app:allowDividerAbove="false"
       app:updatesContinuously="true"

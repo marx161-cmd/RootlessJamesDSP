@@ -1,20 +1,25 @@
-#include <android/log.h>
+// BassBoost was never given an LSP replacement (out of scope — see
+// SCOPE_DESIGN.md) so it stays a real no-op. Compressor's stubs are gone —
+// setCompander() below now calls the real lsp_comp_* engine directly,
+// finishing what this file's previous stub-out pass started but never
+// completed (local mode's compressor did literally nothing until now,
+// not even the old dead path).
+static void BassBoostSetParam(void*d,float a){}
+static void BassBoostEnable(void*d){}
+static void BassBoostDisable(void*d){}
 
+#include "Log.h"
 #define TAG "JamesDspWrapper_JNI"
-#include <Log.h>
-
 #include <string>
 #include <jni.h>
-
 #include "JamesDspWrapper.h"
 #include "JArrayList.h"
 #include "EelVmVariable.h"
-
+#include "lsp_wrap.h"
 extern "C" {
 #include "../EELStdOutExtension.h"
 #include <jdsp_header.h>
 }
-
 // C interop
 inline JamesDSPLib* cast(void* raw){
     if(raw == nullptr)
@@ -23,7 +28,6 @@ inline JamesDSPLib* cast(void* raw){
     }
     return static_cast<JamesDSPLib*>(raw);
 }
-
 inline JamesDspWrapper* castWrapper(jlong raw){
     if(raw == 0)
     {
@@ -31,27 +35,22 @@ inline JamesDspWrapper* castWrapper(jlong raw){
     }
     return reinterpret_cast<JamesDspWrapper*>(raw);
 }
-
 #define RETURN_IF_NULL(name, retval) \
     if(name == nullptr)      \
         return retval;
-
 #define DECLARE_WRAPPER(retval) \
      if(self == 0L) \
         return retval; \
      auto* wrapper = castWrapper(self); \
      RETURN_IF_NULL(wrapper, retval)
-
 #define DECLARE_DSP(retval) \
     DECLARE_WRAPPER(retval) \
     auto* dsp = cast(wrapper->dsp); \
     RETURN_IF_NULL(dsp, retval)
-
 #define DECLARE_WRAPPER_V DECLARE_WRAPPER()
 #define DECLARE_DSP_V DECLARE_DSP()
 #define DECLARE_WRAPPER_B DECLARE_WRAPPER(false)
 #define DECLARE_DSP_B DECLARE_DSP(false)
-
 inline int32_t arySearch(int32_t *array, int32_t N, int32_t x)
 {
     for (int32_t i = 0; i < N; i++)
@@ -61,7 +60,6 @@ inline int32_t arySearch(int32_t *array, int32_t N, int32_t x)
     }
     return -1;
 }
-
 #define FLOIDX 20000
 /*inline void* GetStringForIndex(eel_string_context_state *st, float val, int32_t write)
 {
@@ -80,14 +78,12 @@ inline int32_t arySearch(int32_t *array, int32_t N, int32_t x)
     else
         return (void*)&st->m_literal_strings[idx];
 }*/
-
 extern "C" JNIEXPORT jlong JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_alloc(JNIEnv *env, jobject obj, jobject callback)
 {
     auto* self = new JamesDspWrapper();
     self->callbackInterface = env->NewGlobalRef(callback);
     self->env = env;
-
     jclass callbackClass = env->GetObjectClass(callback);
     if (callbackClass == nullptr)
     {
@@ -113,21 +109,16 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_alloc(JNIEnv *e
             return 0;
         }
     }
-
-
     auto* _dsp = (JamesDSPLib*)malloc(sizeof(JamesDSPLib));
     memset(_dsp, 0, sizeof(JamesDSPLib));
-
     if(!_dsp)
     {
         LOGE("JamesDspWrapper::ctor: Failed to allocate memory for libjamesdsp class object");
         delete self;
         return 1;
     }
-
     JamesDSPGlobalMemoryAllocation();
     JamesDSPInit(_dsp, 128, 48000);
-
     if(!JamesDSPGetMutexStatus(_dsp))
     {
         LOGE("JamesDspWrapper::ctor: JamesDSPGetMutexStatus returned false. "
@@ -137,68 +128,49 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_alloc(JNIEnv *e
         delete self;
         return 2;
     }
-
     self->dsp = _dsp;
-
     LOGD("JamesDspWrapper::ctor: memory allocated at %lx", (long)self);
     return (long)self;
 }
-
 extern "C" JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_free(JNIEnv *env, jobject obj, jlong self)
 {
     DECLARE_DSP_V
-
     LOGD("JamesDspWrapper::dtor: freeing memory allocated at %lx", (long)self);
-
     setStdOutHandler(nullptr, nullptr);
-
     JamesDSPFree(dsp);
     free(dsp);
     wrapper->dsp = nullptr;
-
     JamesDSPGlobalMemoryDeallocation();
-
     env->DeleteGlobalRef(wrapper->callbackInterface);
     delete wrapper;
-
     LOGD("JamesDspWrapper::dtor: memory freed");
 }
-
 extern "C" JNIEXPORT jint JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_getBenchmarkSize(JNIEnv *env, jobject obj) {
     return MAX_BENCHMARK;
 }
-
 extern "C" JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_runBenchmark(JNIEnv *env, jobject obj, jdoubleArray jc0, jdoubleArray jc1)
 {
     LOGD("JamesDspWrapper::runBenchmark: started");
-
     auto c0 = env->GetDoubleArrayElements(jc0, nullptr);
     auto c1 = env->GetDoubleArrayElements(jc1, nullptr);
-
     JamesDSP_Start_benchmark();
     JamesDSP_Save_benchmark(c0, c1);
-
     env->ReleaseDoubleArrayElements(jc0, c0, 0);
     env->ReleaseDoubleArrayElements(jc1, c1, 0);
 }
-
 extern "C" JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_loadBenchmark(JNIEnv *env, jobject obj, jdoubleArray jc0, jdoubleArray jc1)
 {
     LOGD("JamesDspWrapper::loadBenchmark: loading data");
-
     auto c0 = env->GetDoubleArrayElements(jc0, nullptr);
     auto c1 = env->GetDoubleArrayElements(jc1, nullptr);
-
     JamesDSP_Load_benchmark(c0, c1);
-
     env->ReleaseDoubleArrayElements(jc0, c0, JNI_ABORT);
     env->ReleaseDoubleArrayElements(jc1, c1, JNI_ABORT);
 }
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setSamplingRate(JNIEnv *env,
@@ -210,21 +182,17 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setSamplingRate
     DECLARE_DSP_V
     JamesDSPSetSampleRate(dsp, sample_rate, force_refresh);
 }
-
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_isHandleValid(JNIEnv *env, jobject obj, jlong self)
 {
     DECLARE_DSP_B // This macro returns false if the DSP object can't be accessed
     return true;
 }
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt16(JNIEnv *env, jobject obj, jlong self, jshortArray inputObj, jshortArray outputObj, jint offset, jint size)
 {
     DECLARE_DSP_V
-
     jsize inputLength;
     if(size < 0)
         inputLength = env->GetArrayLength(inputObj);
@@ -232,20 +200,17 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt16(JN
         inputLength = size;
     if(offset < 0)
         offset = 0;
-
     auto input = env->GetShortArrayElements(inputObj, nullptr);
     auto output = env->GetShortArrayElements(outputObj, nullptr);
     dsp->processInt16Multiplexd(dsp, input + offset, output, inputLength / 2);
     env->ReleaseShortArrayElements(inputObj, input, JNI_ABORT);
     env->ReleaseShortArrayElements(outputObj, output, 0);
 }
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt32(JNIEnv *env, jobject obj, jlong self, jintArray inputObj, jintArray outputObj, jint offset, jint size)
 {
     DECLARE_DSP_V
-
     jsize inputLength;
     if(size < 0)
         inputLength = env->GetArrayLength(inputObj);
@@ -253,26 +218,21 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt32(JN
         inputLength = size;
     if(offset < 0)
         offset = 0;
-
     auto input = env->GetIntArrayElements(inputObj, nullptr);
     auto output = env->GetIntArrayElements(outputObj, nullptr);
     dsp->processInt32Multiplexd(dsp, input + offset, output, inputLength / 2);
     env->ReleaseIntArrayElements(inputObj, input, JNI_ABORT);
     env->ReleaseIntArrayElements(outputObj, output, 0);
 }
-
 extern "C"
 JNIEXPORT jbooleanArray JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt24Packed(JNIEnv *env, jobject obj, jlong self, jbooleanArray inputObj)
 {
     /* We need to use jbooleanArray (= unsigned 8-bit) instead of jbyteArray (= signed 8-bit) here! */
-
     // Return inputObj if DECLARE failed
     DECLARE_DSP(inputObj)
-
     auto inputLength = env->GetArrayLength(inputObj);
     auto outputObj = env->NewBooleanArray(inputLength);
-
     auto input = env->GetBooleanArrayElements(inputObj, nullptr);
     auto output = env->GetBooleanArrayElements(outputObj, nullptr);
     dsp->processInt24PackedMultiplexd(dsp, input, output, inputLength / 2);
@@ -280,17 +240,14 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt24Pac
     env->ReleaseBooleanArrayElements(outputObj, output, 0);
     return outputObj;
 }
-
 extern "C"
 JNIEXPORT jintArray JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt8U24(JNIEnv *env, jobject obj, jlong self, jintArray inputObj)
 {
     // Return inputObj if DECLARE failed
     DECLARE_DSP(inputObj)
-
     auto inputLength = env->GetArrayLength(inputObj);
     auto outputObj = env->NewIntArray(inputLength);
-
     auto input = env->GetIntArrayElements(inputObj, nullptr);
     auto output = env->GetIntArrayElements(outputObj, nullptr);
     dsp->processInt8_24Multiplexd(dsp, input, output, inputLength / 2);
@@ -298,13 +255,11 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processInt8U24(
     env->ReleaseIntArrayElements(outputObj, output, 0);
     return outputObj;
 }
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processFloat(JNIEnv *env, jobject obj, jlong self, jfloatArray inputObj, jfloatArray outputObj, jint offset, jint size)
 {
     DECLARE_DSP_V
-
     jsize inputLength;
     if(size < 0)
         inputLength = env->GetArrayLength(inputObj);
@@ -312,16 +267,12 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_processFloat(JN
         inputLength = size;
     if(offset < 0)
         offset = 0;
-
     auto input = env->GetFloatArrayElements(inputObj, nullptr);
     auto output = env->GetFloatArrayElements(outputObj, nullptr);
-
     dsp->processFloatMultiplexd(dsp, input + offset, output, inputLength / 2);
-
     env->ReleaseFloatArrayElements(inputObj, input, JNI_ABORT);
     env->ReleaseFloatArrayElements(outputObj, output, 0);
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setLimiter(JNIEnv *env, jobject obj, jlong self, jfloat threshold, jfloat release)
 {
@@ -329,7 +280,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setLimiter(JNIE
     JLimiterSetCoefficients(dsp, threshold, release);
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setPostGain(JNIEnv *env, jobject obj, jlong self, jfloat gain)
 {
@@ -337,28 +287,24 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setPostGain(JNI
     JamesDSPSetPostGain(dsp, gain);
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setMultiEqualizer(JNIEnv *env, jobject obj, jlong self,
                                                                                    jboolean enable, jint filterType, jint interpolationMode,
                                                                                    jdoubleArray bands)
 {
     DECLARE_DSP_B
-
     if(env->GetArrayLength(bands) != 30)
     {
         LOGE("JamesDspWrapper::setMultiEqualizer: Invalid EQ data. 30 semicolon-separated fields expected, "
                       "found %d fields instead.", env->GetArrayLength(bands));
         return false;
     }
-
     if(bands == nullptr)
     {
         LOGW("JamesDspWrapper::setMultiEqualizer: EQ band pointer is NULL. Disabling EQ");
         MultimodalEqualizerDisable(dsp);
         return true;
     }
-
     if(enable)
     {
         auto* nativeBands = (env->GetDoubleArrayElements(bands, nullptr));
@@ -372,7 +318,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setMultiEqualiz
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setVdc(JNIEnv *env, jobject obj, jlong self,
                                                                        jboolean enable, jstring vdcContents)
@@ -383,14 +328,12 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setVdc(JNIEnv *
         const char *nativeString = env->GetStringUTFChars(vdcContents, nullptr);
         DDCStringParser(dsp, (char*)nativeString);
         env->ReleaseStringUTFChars(vdcContents, nativeString);
-
         int ret = DDCEnable(dsp, 1);
         if (ret <= 0)
         {
             LOGE("JamesDspWrapper::setVdc: Call to DDCEnable(wrapper->dsp) failed. Invalid DDC parameter?");
             LOGE("JamesDspWrapper::setVdc: Disabling DDC engine");
             env->CallVoidMethod(wrapper->callbackInterface, wrapper->callbackOnVdcParseError);
-
             DDCDisable(dsp);
             return false;
         }
@@ -401,42 +344,22 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setVdc(JNIEnv *
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setCompander(JNIEnv *env, jobject obj, jlong self,
-                                                                              jboolean enable, jfloat timeConstant, jint granularity, jint tfresolution, jdoubleArray bands)
+                                                                              jboolean enable, jfloat threshold, jfloat ratio, jfloat knee,
+                                                                              jfloat attack, jfloat release, jfloat hold)
 {
     DECLARE_DSP_B
-
-    if(env->GetArrayLength(bands) != 14)
-    {
-        LOGE("JamesDspWrapper::setCompander: Invalid compander data. 14 semicolon-separated fields expected, "
-             "found %d fields instead.", env->GetArrayLength(bands));
-        return false;
-    }
-
-    if(bands == nullptr)
-    {
-        LOGW("JamesDspWrapper::setCompander: Compander band pointer is NULL. Disabling compander");
-        MultimodalEqualizerDisable(dsp);
-        return true;
-    }
-
+    // Mirrors the AIDL cmd 10101 handler in jamesdsp.c — same dsp->mbDynEnabled
+    // flag, same lsp_comp_configure() call, just reached via direct JNI args
+    // instead of an AIDL float-array command blob.
+    dsp->mbDynEnabled = enable;
     if(enable)
     {
-        CompressorSetParam(dsp, timeConstant, granularity, tfresolution, 0);
-        auto* nativeBands = (env->GetDoubleArrayElements(bands, nullptr));
-        CompressorSetGain(dsp, nativeBands, nativeBands + 7, 1);
-        env->ReleaseDoubleArrayElements(bands, nativeBands, JNI_ABORT);
-        CompressorEnable(dsp, 1);
-    }
-    else
-    {
-        CompressorDisable(dsp);
+        lsp_comp_configure(dsp->compressor_handle, threshold, ratio, knee, attack, release, hold);
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setReverb(JNIEnv *env, jobject obj, jlong self,
                                                                           jboolean enable, jint preset)
@@ -453,51 +376,41 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setReverb(JNIEn
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setConvolver(JNIEnv *env, jobject obj, jlong self,
                                                                              jboolean enable, jfloatArray impulseResponse,
                                                                              jint irChannels, jint irFrames)
 {
     DECLARE_DSP_B
-
     int success = 1;
     if(env->GetArrayLength(impulseResponse) <= 0)
     {
         LOGW("JamesDspWrapper::setConvolver: Impulse response array is empty. Disabling convolver");
         enable = false;
     }
-
     if(enable)
     {
         if(irFrames <= 0)
         {
             LOGW("JamesDspWrapper::setConvolver: Impulse response has zero frames");
         }
-
         LOGD("JamesDspWrapper::setConvolver: Impulse response loaded: channels=%d, frames=%d", irChannels, irFrames);
-
         Convolver1DDisable(dsp);
-
         auto* nativeImpulse = (env->GetFloatArrayElements(impulseResponse, nullptr));
         success = Convolver1DLoadImpulseResponse(dsp, nativeImpulse, irChannels, irFrames, 1);
         env->ReleaseFloatArrayElements(impulseResponse, nativeImpulse, JNI_ABORT);
     }
-
     if(enable)
         Convolver1DEnable(dsp);
     else
         Convolver1DDisable(dsp);
-
     if(success <= 0)
     {
         LOGD("JamesDspWrapper::setConvolver: Failed to update convolver. Convolver1DLoadImpulseResponse returned an error.");
         return false;
     }
-
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setGraphicEq(JNIEnv *env, jobject obj, jlong self,
                                                                              jboolean enable, jstring graphicEq)
@@ -508,21 +421,17 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setGraphicEq(JN
         LOGE("JamesDspWrapper::setGraphicEq: graphicEq is empty or NULL. Disabling graphic eq.");
         enable = false;
     }
-
     if(enable)
     {
         const char *nativeString = env->GetStringUTFChars(graphicEq, nullptr);
         ArbitraryResponseEqualizerStringParser(dsp, (char*)nativeString);
         env->ReleaseStringUTFChars(graphicEq, nativeString);
-
         ArbitraryResponseEqualizerEnable(dsp, 1);
     }
     else
         ArbitraryResponseEqualizerDisable(dsp);
-
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setCrossfeed(JNIEnv *env, jobject obj, jlong self,
                                                                              jboolean enable, jint mode, jint customFcut, jint customFeed)
@@ -538,15 +447,12 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setCrossfeed(JN
     {
        CrossfeedChangeMode(dsp, mode);
     }
-
     if(enable)
         CrossfeedEnable(dsp, 1);
     else
         CrossfeedDisable(dsp);
-
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setBassBoost(JNIEnv *env, jobject obj, jlong self,
                                                                              jboolean enable, jfloat maxGain)
@@ -563,7 +469,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setBassBoost(JN
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setStereoEnhancement(JNIEnv *env, jobject obj, jlong self,
                                                                                      jboolean enable, jfloat level)
@@ -577,7 +482,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setStereoEnhanc
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setVacuumTube(JNIEnv *env, jobject obj, jlong self,
                                                                               jboolean enable, jfloat level)
@@ -594,33 +498,25 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setVacuumTube(J
     }
     return true;
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setLiveprog(JNIEnv *env, jobject obj, jlong self,
                                                                             jboolean enable, jstring id, jstring liveprogContent)
 {
     DECLARE_DSP_B
-
     // Attach log listener
     setStdOutHandler(receiveLiveprogStdOut, wrapper);
-
     LiveProgDisable(dsp);
-
     const char *nativeString = env->GetStringUTFChars(liveprogContent, nullptr);
     if(strlen(nativeString) < 1) {
         LOGD("JamesDspWrapper::setLiveprog: empty file")
         env->ReleaseStringUTFChars(liveprogContent, nativeString);
         return true;
     }
-
     env->CallVoidMethod(wrapper->callbackInterface, wrapper->callbackOnLiveprogExec, id);
-
     int ret = LiveProgStringParser(dsp, (char*)nativeString); // Ignore constness, libjamesdsp does not modify it
     env->ReleaseStringUTFChars(liveprogContent, nativeString);
-
     // Workaround due to library bug
     jdsp_unlock(dsp);
-
     const char* errorString = NSEEL_code_getcodeerror(dsp->eel.vm);
     if(errorString != nullptr)
     {
@@ -630,27 +526,21 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setLiveprog(JNI
     {
         LOGW("JamesDspWrapper::setLiveprog: %s", checkErrorCode(ret));
     }
-
     jstring errorStringJni = env->NewStringUTF(errorString);
     env->CallVoidMethod(wrapper->callbackInterface, wrapper->callbackOnLiveprogResult, ret, id, errorStringJni);
     env->DeleteLocalRef(errorStringJni);
-
     if(enable)
         LiveProgEnable(dsp);
     else
         LiveProgDisable(dsp);
     return true;
 }
-
-
 extern "C" JNIEXPORT jobject JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_enumerateEelVariables(JNIEnv *env, jobject obj, jlong self)
 {
     auto array = JArrayList(env);
-
     // Return empty array if DECLARE failed
     DECLARE_DSP(array.getJavaReference())
-
     auto *ctx = (compileContext*)dsp->eel.vm;
     for (int i = 0; i < ctx->varTable_numBlocks; i++)
     {
@@ -659,26 +549,21 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_enumerateEelVar
             // TODO fix string handling (broke after last libjamesdsp update)
             const char *valid = nullptr;//(char*)GetStringForIndex(ctx->region_context, ctx->varTable_Values[i][j], 1);
             bool isString = valid;
-
             if (ctx->varTable_Names[i][j])
             {
                 const char* name = ctx->varTable_Names[i][j];
                 const char* value;
-
                 if(isString)
                     value = valid;
                 else
                     value = std::to_string(ctx->varTable_Values[i][j]).c_str();
-
                 auto var = EelVmVariable(env, name, value, isString);
                 array.add(var.getJavaReference());
             }
         }
     }
-
     return array.getJavaReference();
 }
-
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_manipulateEelVariable(JNIEnv *env, jobject obj, jlong self,
                                                                                       jstring name, jfloat value)
@@ -695,7 +580,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_manipulateEelVa
                 env->ReleaseStringUTFChars(name, nativeName);
                 continue;
             }
-
             const char *valid = nullptr;//(char*)GetStringForIndex(ctx->region_context, ctx->varTable_Values[i][j], 1);
             if(valid)
             {
@@ -703,20 +587,16 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_manipulateEelVa
                 env->ReleaseStringUTFChars(name, nativeName);
                 return false;
             }
-
             ctx->varTable_Values[i][j] = value;
-
             env->ReleaseStringUTFChars(name, nativeName);
             return true;
         }
     }
-
     const char *nativeName = env->GetStringUTFChars(name, nullptr);
     LOGE("JamesDspWrapper::manipulateEelVariable: variable '%s' not found", nativeName);
     env->ReleaseStringUTFChars(name, nativeName);
     return false;
 }
-
 extern "C" JNIEXPORT void JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_freezeLiveprogExecution(JNIEnv *env, jobject obj, jlong self,
                                                                                         jboolean freeze)
@@ -725,7 +605,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_freezeLiveprogE
     dsp->eel.active = !freeze;
     LOGD("JamesDspWrapper::freezeLiveprogExecution: Liveprog execution has been %s", (freeze ? "frozen" : "resumed"));
 }
-
 extern "C" JNIEXPORT jstring JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_eelErrorCodeToString(JNIEnv *env,
                                                                                      jobject obj,
@@ -733,7 +612,6 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_eelErrorCodeToS
 {
     return env->NewStringUTF(checkErrorCode(error_code));
 }
-
 void receiveLiveprogStdOut(const char *buffer, void* userData)
 {
     auto* self = static_cast<JamesDspWrapper*>(userData);
@@ -743,14 +621,12 @@ void receiveLiveprogStdOut(const char *buffer, void* userData)
         LOGE("JamesDspWrapper::receiveLiveprogStdOut: Unhandled output: %s", buffer);
         return;
     }
-
     self->env->CallVoidMethod(self->callbackInterface, self->callbackOnLiveprogOutput, self->env->NewStringUTF(buffer));
 }
-
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *, void *)
 {
 #ifndef NO_CRASHLYTICS
-    firebase::crashlytics::Initialize();
+    /* firebase::crashlytics::Initialize() — not available */ int __unused_crashlytics = 0; (void)__unused_crashlytics;
 #endif
     LOGD("JNI_OnLoad called")
     return JNI_VERSION_1_6;
