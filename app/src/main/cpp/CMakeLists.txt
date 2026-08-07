@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG")
+# NOTE: -Ofast (below, pre-existing) already implies -ffast-math semantics —
+# the "skip fast-math" decision made when scoping the SVE2/NEON optimization
+# work isn't actually reflected in the real build yet, since this flag
+# predates that discussion. Flagged, not touched here — dialing it back to
+# -O3 is a separate, deliberate decision, not bundled into this LTO change.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration -flto")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -flto")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")
 
 project(jamesdsp LANGUAGES C CXX)
 project(jamesdsp-wrapper LANGUAGES CXX)
@@ -69,7 +75,9 @@ file(GLOB_RECURSE LIBJAMESDSP_SOURCE_FILES CONFIGURE_DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/*.h)
 # The AIDL entry point file is one level above the jdsp/ directory
 list(APPEND LIBJAMESDSP_SOURCE_FILES ${CMAKE_CURRENT_LIST_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jamesdsp.c)
-list(FILTER LIBJAMESDSP_SOURCE_FILES EXCLUDE REGEX "Effects/dbb\\.c$")
+# dbb.c (Dynamic Bass Boost) restored 2026-08-07 as an opt-in module — no
+# longer excluded. dynamic.c's old FFTCompander-based Compressor stays
+# excluded; it was replaced by the LSP compressor port, not just deprioritized.
 list(FILTER LIBJAMESDSP_SOURCE_FILES EXCLUDE REGEX "Effects/dynamic\\.c$")
 
 # Main shared library
