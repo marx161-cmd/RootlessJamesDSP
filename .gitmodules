@@ -1,7 +1,11 @@
 [submodule "app/src/main/cpp/libjamesdsp"]
 	path = app/src/main/cpp/libjamesdsp
-	url = https://github.com/ThePBone/JamesDSPManager
-	branch = extensions
+	# Repointed 2026-08-07 to our private fork — real upstream is
+	# https://github.com/ThePBone/JamesDSPManager (branch extensions), but the
+	# actual engine modifications (LSP port wiring, Lua bridge, Bass Boost
+	# restore, FTZ/DAZ) only exist in this fork, not upstream.
+	url = https://github.com/marx161-cmd/JamesDSPManager.git
+	branch = main
 [submodule "cpp/libjamesdsp"]
 	branch = extensions
 [submodule "app/src/main/cpp/lsp-plugins"]
