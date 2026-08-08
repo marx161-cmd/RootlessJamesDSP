@@ -12,6 +12,18 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")
 project(jamesdsp LANGUAGES C CXX)
 project(jamesdsp-wrapper LANGUAGES CXX)
 
+# JDSP_SVE2_FFT_X2: build-level guard shared by codelet.c/.h AND
+# FFTConvolver.c/.h, so both agree on whether the SVE2 _x2 FFT variants
+# exist regardless of which file the preprocessor is looking at.
+# __ARM_FEATURE_SVE2 alone can't do this job -- it's per-translation-unit,
+# and only codelet.c gets the -march=...+sve2 flag (below), so codelet.h's
+# declarations would silently vanish when included from FFTConvolver.c (no
+# SVE2 flag of its own) even on arm64-v8a. Placed before both include()s so
+# every target defined by this file, including the wrapper, sees it.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    add_compile_definitions(JDSP_SVE2_FFT_X2)
+endif()
+
 include(libjdspimptoolbox/CMakeLists.txt)
 include(libjamesdsp-wrapper/CMakeLists.txt)
 
@@ -79,6 +91,28 @@ list(APPEND LIBJAMESDSP_SOURCE_FILES ${CMAKE_CURRENT_LIST_DIR}/libjamesdsp/Main/
 # longer excluded. dynamic.c's old FFTCompander-based Compressor stays
 # excluded; it was replaced by the LSP compressor port, not just deprioritized.
 list(FILTER LIBJAMESDSP_SOURCE_FILES EXCLUDE REGEX "Effects/dynamic\\.c$")
+
+# codelet.c's SVE2 _x2 code depends on non-fused multiply-add matching the
+# scalar reference bit-for-bit (see the pragma at the top of the file for
+# the full story). -Ofast above implies fast-math, which silently re-fuses
+# that and reintroduces a correctness bug measured at 1.28e-4 relative
+# error -- over the sandbox test harness's own 1e-4 tolerance. This is a
+# second, build-level guard on top of the in-source pragma.
+#
+# -march is set ONLY for arm64-v8a (see JDSP_SVE2_FFT_X2 comment near the
+# top of this file for why armeabi-v7a/x86/x86_64 don't get it), applied
+# just to codelet.c since it's the only file with SVE2 intrinsics.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set_source_files_properties(
+        ${CMAKE_CURRENT_LIST_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/Effects/eel2/numericSys/codelet.c
+        PROPERTIES COMPILE_OPTIONS "-march=armv9.2-a+sve2;-ffp-contract=off"
+    )
+else()
+    set_source_files_properties(
+        ${CMAKE_CURRENT_LIST_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/Effects/eel2/numericSys/codelet.c
+        PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+    )
+endif()
 
 # Main shared library
 add_library(jamesdsp SHARED
