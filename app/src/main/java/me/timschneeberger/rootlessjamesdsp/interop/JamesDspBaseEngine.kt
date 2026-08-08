@@ -62,7 +62,21 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             cache.select(Constants.PREF_OUTPUT)
             val outputPostGain = cache.get(R.string.key_output_postgain, 0f)
             val limiterThreshold = cache.get(R.string.key_limiter_threshold, -0.1f)
+            val limiterAttack = cache.get(R.string.key_limiter_attack, 5f)
             val limiterRelease = cache.get(R.string.key_limiter_release, 5f)
+            val limiterKnee = cache.get(R.string.key_limiter_knee, 1.0f)
+
+            cache.select(Constants.PREF_GATE)
+            val gateEnabled = cache.get(R.string.key_gate_enable, false)
+            val gateOpenThreshold = cache.get(R.string.key_gate_open_threshold, -40f)
+            val gateCloseThreshold = cache.get(R.string.key_gate_close_threshold, -50f)
+            val gateAttack = cache.get(R.string.key_gate_attack, 1f)
+            val gateRelease = cache.get(R.string.key_gate_release, 50f)
+            val gateHold = cache.get(R.string.key_gate_hold, 10f)
+            val gateReduction = cache.get(R.string.key_gate_reduction, -60f)
+
+            cache.select(Constants.PREF_AUTOGAIN)
+            val autoGainEnabled = cache.get(R.string.key_autogain_enable, false)
 
             cache.select(Constants.PREF_COMPANDER)
             val compEnabled = cache.get(R.string.key_compander_enable, false)
@@ -127,7 +141,9 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                 Timber.i("Committing new changes in namespace '$it'")
 
                 val result = when (it) {
-                    Constants.PREF_OUTPUT -> setOutputControl(limiterThreshold, limiterRelease, outputPostGain)
+                    Constants.PREF_OUTPUT -> setOutputControl(limiterThreshold, limiterAttack, limiterRelease, limiterKnee, outputPostGain)
+                    Constants.PREF_GATE -> setGate(gateEnabled, gateOpenThreshold, gateCloseThreshold, gateAttack, gateRelease, gateHold, gateReduction)
+                    Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
                     Constants.PREF_EQ -> setMultiEqualizer(eqEnabled, eqFilterType, eqInterpolationMode, eqBands)
@@ -173,6 +189,16 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     fun setCompander(enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     {
         return setCompanderInternal(enable, threshold, ratio, knee, attack, release, hold)
+    }
+
+    fun setGate(enable: Boolean, openThreshold: Float, closeThreshold: Float, attack: Float, release: Float, hold: Float, reduction: Float): Boolean
+    {
+        return setGateInternal(enable, openThreshold, closeThreshold, attack, release, hold, reduction)
+    }
+
+    fun setAutoGain(enable: Boolean): Boolean
+    {
+        return setAutoGainInternal(enable)
     }
 
     fun setVdc(enable: Boolean, vdcPath: String): Boolean
@@ -377,7 +403,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
         }
 
     // Effect config
-    abstract fun setOutputControl(threshold: Float, release: Float, postGain: Float): Boolean
+    abstract fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean
     abstract fun setReverb(enable: Boolean, preset: Int): Boolean
     abstract fun setCrossfeed(enable: Boolean, mode: Int): Boolean
     abstract fun setCrossfeedCustom(enable: Boolean, fcut: Int, feed: Int): Boolean
@@ -390,6 +416,8 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     // the Dynamic Range Compander's timeConstant/granularity/tfTransforms/
     // bands params, which the native side no longer does anything with.
     protected abstract fun setCompanderInternal(enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
+    protected abstract fun setGateInternal(enable: Boolean, openThreshold: Float, closeThreshold: Float, attack: Float, release: Float, hold: Float, reduction: Float): Boolean
+    protected abstract fun setAutoGainInternal(enable: Boolean): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean

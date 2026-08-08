@@ -77,8 +77,16 @@ class DspFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListen
                     R.xml.dsp_output_control_preferences
                 ))
             .replace(
+                R.id.card_gate, PreferenceGroupFragment.newInstance(Constants.PREF_GATE,
+                    R.xml.dsp_gate_preferences
+                ))
+            .replace(
                 R.id.card_compressor, PreferenceGroupFragment.newInstance(Constants.PREF_COMPANDER,
                     R.xml.dsp_compander_preferences
+                ))
+            .replace(
+                R.id.card_autogain, PreferenceGroupFragment.newInstance(Constants.PREF_AUTOGAIN,
+                    R.xml.dsp_autogain_preferences
                 ))
             .replace(
                 R.id.card_eq, PreferenceGroupFragment.newInstance(Constants.PREF_EQ,

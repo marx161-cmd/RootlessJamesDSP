@@ -141,6 +141,18 @@
     <string name="key_liveprog_edit" translatable="false">liveprog_edit</string> <!-- static -->
 
     <string name="key_limiter_threshold" translatable="false">limiter_threshold</string>
+    <string name="key_limiter_attack" translatable="false">limiter_attack</string>
     <string name="key_limiter_release" translatable="false">limiter_release</string>
+    <string name="key_limiter_knee" translatable="false">limiter_knee</string>
     <string name="key_output_postgain" translatable="false">output_postgain</string>
+
+    <string name="key_gate_enable" translatable="false">gate_enable</string>
+    <string name="key_gate_open_threshold" translatable="false">gate_open_threshold</string>
+    <string name="key_gate_close_threshold" translatable="false">gate_close_threshold</string>
+    <string name="key_gate_attack" translatable="false">gate_attack</string>
+    <string name="key_gate_release" translatable="false">gate_release</string>
+    <string name="key_gate_hold" translatable="false">gate_hold</string>
+    <string name="key_gate_reduction" translatable="false">gate_reduction</string>
+
+    <string name="key_autogain_enable" translatable="false">autogain_enable</string>
 </resources>

@@ -203,8 +203,20 @@
 
     <string name="output_control_header">Output control</string>
     <string name="output_limiter_threshold">Limiter threshold</string>
+    <string name="output_limiter_attack">Limiter attack</string>
     <string name="output_limiter_release">Limiter release</string>
+    <string name="output_limiter_knee">Limiter knee</string>
     <string name="output_control_postgain">Post gain</string>
+
+    <string name="gate_enable">Gate</string>
+    <string name="gate_open_threshold">Open threshold</string>
+    <string name="gate_close_threshold">Close threshold</string>
+    <string name="gate_attack">Attack</string>
+    <string name="gate_release">Release</string>
+    <string name="gate_hold">Hold</string>
+    <string name="gate_reduction">Reduction</string>
+
+    <string name="autogain_enable">AutoGain (legacy)</string>
 
     <string name="stereowide_enable">Soundstage wideness</string>
     <string name="stereowide_level">Wideness</string>

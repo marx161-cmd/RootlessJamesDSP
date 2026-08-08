@@ -20,12 +20,33 @@
       app:showSeekBarValue="true"
       app:iconSpaceReserved="false" />
   <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+      android:key="@string/key_limiter_attack"
+      android:title="@string/output_limiter_attack"
+      android:defaultValue="5"
+      app:minValue="0.25"
+      app:maxValue="20"
+      app:unit="ms"
+      app:allowDividerAbove="false"
+      app:updatesContinuously="true"
+      app:showSeekBarValue="true"
+      app:iconSpaceReserved="false" />
+  <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
       android:key="@string/key_limiter_release"
       android:title="@string/output_limiter_release"
       android:defaultValue="5"
       app:minValue="0.25"
       app:maxValue="20"
       app:unit="ms"
+      app:allowDividerAbove="false"
+      app:updatesContinuously="true"
+      app:showSeekBarValue="true"
+      app:iconSpaceReserved="false" />
+  <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+      android:key="@string/key_limiter_knee"
+      android:title="@string/output_limiter_knee"
+      android:defaultValue="1.0"
+      app:minValue="0.0"
+      app:maxValue="1.0"
       app:allowDividerAbove="false"
       app:updatesContinuously="true"
       app:showSeekBarValue="true"

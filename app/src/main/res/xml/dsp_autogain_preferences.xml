@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- Legacy RMS-integrator AutoGain (chain_modules.c) — target level and
+         adaptation rate are hardcoded constants in that module, not exposed
+         tunables, so this card is enable-only for now. Real EBU R128/
+         libebur128-based AutoGain (matching the project's original design
+         goal) is a separate, not-yet-started port; this switches on the
+         existing legacy algorithm, not that one. -->
+    <me.timschneeberger.rootlessjamesdsp.preference.SwitchPreferenceGroup
+        android:key="@string/key_autogain_enable"
+        android:disableDependentsState="false"
+        android:title="@string/autogain_enable"
+        android:icon="@drawable/ic_baseline_arrow_collapse_24dp"
+        app:iconSpaceReserved="false" />
+</PreferenceScreen>

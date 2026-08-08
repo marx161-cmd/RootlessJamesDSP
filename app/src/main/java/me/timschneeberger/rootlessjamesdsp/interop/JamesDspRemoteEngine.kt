@@ -122,11 +122,39 @@ class JamesDspRemoteEngine(
         super.close()
     }
 
-    override fun setOutputControl(threshold: Float, release: Float, postGain: Float): Boolean {
+    override fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
         return effect.setParameterFloatArray(
             1500,
-            floatArrayOf(threshold, release, postGain)
+            floatArrayOf(threshold, attack, release, knee, postGain)
         ) == AudioEffect.SUCCESS
+    }
+
+    // Sends AIDL cmd 10100 (native: jamesdsp.c, "Gate: enabled, open_db,
+    // close_db, attack, release, hold, reduct" — routes to the real LSP
+    // gate via lsp_gate_configure()). Same 8-float payload shape as
+    // setCompanderInternal's cmd 10101 — band index at index 0 is unused
+    // (single instance, not per-band), sent as 0.
+    override fun setGateInternal(
+        enable: Boolean,
+        openThreshold: Float,
+        closeThreshold: Float,
+        attack: Float,
+        release: Float,
+        hold: Float,
+        reduction: Float
+    ): Boolean {
+        return effect.setParameterFloatArray(10100, floatArrayOf(
+            0f, if (enable) 1f else 0f,
+            openThreshold, closeThreshold, attack, release, hold, reduction
+        )) == AudioEffect.SUCCESS
+    }
+
+    // Sends AIDL cmd 1207 (native: jamesdsp.c) — toggles the legacy
+    // RMS-integrator AutoGain module (chain_modules.c). Not the real
+    // libebur128-based AutoGain the project's design goals call for; that
+    // port hasn't started. This switches on the existing legacy algorithm.
+    override fun setAutoGainInternal(enable: Boolean): Boolean {
+        return effect.setParameter(1207, enable.toShort()) == AudioEffect.SUCCESS
     }
 
     // Sends AIDL cmd 10101 (native: jamesdsp.c, "Compressor: enabled,

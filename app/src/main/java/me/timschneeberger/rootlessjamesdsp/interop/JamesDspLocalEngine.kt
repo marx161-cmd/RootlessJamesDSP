@@ -87,7 +87,12 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
     }
 
     // Effect config
-    override fun setOutputControl(threshold: Float, release: Float, postGain: Float): Boolean {
+    // attack/knee not yet plumbed through the local-mode JNI (JamesDspWrapper
+    // only has the old 2-arg setLimiter) — accepted here to satisfy the
+    // shared abstract signature, not applied. Root/AIDL mode
+    // (JamesDspRemoteEngine, what this device actually runs) has the real
+    // 5-param path.
+    override fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
         return JamesDspWrapper.setLimiter(handle, threshold, release) and JamesDspWrapper.setPostGain(handle, postGain)
     }
 
@@ -140,6 +145,24 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         hold: Float
     ): Boolean {
         return JamesDspWrapper.setCompander(handle, enable, threshold, ratio, knee, attack, release, hold)
+    }
+
+    // Not implemented in local-mode JNI yet — no JamesDspWrapper.setGate/
+    // setAutoGain native functions exist. Root/AIDL mode has the real path.
+    override fun setGateInternal(
+        enable: Boolean,
+        openThreshold: Float,
+        closeThreshold: Float,
+        attack: Float,
+        release: Float,
+        hold: Float,
+        reduction: Float
+    ): Boolean {
+        throw UnsupportedOperationException()
+    }
+
+    override fun setAutoGainInternal(enable: Boolean): Boolean {
+        throw UnsupportedOperationException()
     }
 
     override fun setVdcInternal(enable: Boolean, vdc: String): Boolean {
