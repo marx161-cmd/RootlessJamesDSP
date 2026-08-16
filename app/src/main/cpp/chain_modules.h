@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 void chain_register(const char *name, void (*fn)(float*,float*,unsigned), int *toggle);
+void chain_reset(void);
 int  chain_set_order(int *indices, int len);
 void chain_process(float *L, float *R, unsigned n);
 

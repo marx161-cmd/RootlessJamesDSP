@@ -24,6 +24,11 @@ void chain_register(const char *name, void (*fn)(float*,float*,unsigned), int *t
     g_modules[g_module_count++] = (ChainModule){name, fn, toggle};
 }
 
+void chain_reset(void) {
+    g_module_count = 0;
+    g_chain_len = 0;
+}
+
 int chain_set_order(int *indices, int len) {
     if (len > 16) len = 16;
     g_chain_len = len;

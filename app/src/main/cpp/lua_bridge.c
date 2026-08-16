@@ -851,13 +851,39 @@ static int utils_parse_json(lua_State *L) {
 
 // Use a recursive Lua function for format_json for reliability.
 // Embedded as a string; installed during init.
+// Lua's string.format('%q', v) escapes for Lua *source* syntax, not JSON:
+// control bytes become decimal escapes like \9 or \0, which every strict
+// JSON parser (jq, Python json, JS JSON.parse) rejects. json_escape below
+// hex-encodes 0x00-0x1F as \uXXXX per RFC 8259 instead. Quote/backslash
+// chars are built via string.char() rather than written literally so this
+// Lua source can be embedded as a plain C string with no nested-quote
+// escaping.
 static const char *format_json_lua =
+    "local QUOTE = string.char(34)\n"
+    "local BACKSLASH = string.char(92)\n"
+    "local function json_escape(s)\n"
+    "  local out = {}\n"
+    "  for i = 1, #s do\n"
+    "    local b = s:byte(i)\n"
+    "    if b == 34 then out[#out+1] = BACKSLASH .. QUOTE\n"
+    "    elseif b == 92 then out[#out+1] = BACKSLASH .. BACKSLASH\n"
+    "    elseif b == 8 then out[#out+1] = BACKSLASH .. 'b'\n"
+    "    elseif b == 12 then out[#out+1] = BACKSLASH .. 'f'\n"
+    "    elseif b == 10 then out[#out+1] = BACKSLASH .. 'n'\n"
+    "    elseif b == 13 then out[#out+1] = BACKSLASH .. 'r'\n"
+    "    elseif b == 9 then out[#out+1] = BACKSLASH .. 't'\n"
+    "    elseif b < 0x20 then out[#out+1] = string.format(BACKSLASH .. 'u%04x', b)\n"
+    "    else out[#out+1] = s:sub(i, i)\n"
+    "    end\n"
+    "  end\n"
+    "  return QUOTE .. table.concat(out) .. QUOTE\n"
+    "end\n"
     "local function format(v)\n"
     "  local t = type(v)\n"
     "  if t == 'nil' then return 'null'\n"
     "  elseif t == 'boolean' then return v and 'true' or 'false'\n"
     "  elseif t == 'number' then return tostring(v)\n"
-    "  elseif t == 'string' then return string.format('%q', v)\n"
+    "  elseif t == 'string' then return json_escape(v)\n"
     "  elseif t == 'table' then\n"
     "    local parts = {}\n"
     "    local is_array = true\n"
@@ -868,7 +894,7 @@ static const char *format_json_lua =
     "    else\n"
     "      for k, val in pairs(v) do\n"
     "        if type(k) == 'string' then\n"
-    "          parts[#parts+1] = string.format('%q', k) .. ':' .. format(val)\n"
+    "          parts[#parts+1] = json_escape(k) .. ':' .. format(val)\n"
     "        end\n"
     "      end\n"
     "      return '{' .. table.concat(parts, ',') .. '}'\n"
