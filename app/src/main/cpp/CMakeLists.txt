@@ -139,3 +139,32 @@ set_target_properties(jamesdsp PROPERTIES OUTPUT_NAME jamesdsp_engine)
 
 find_library(log-lib log)
 target_link_libraries(jamesdsp PRIVATE ${log-lib})
+
+# Static variant of the exact same sources, for the crDroid vendor-tree AIDL
+# wrapper to link whole-archive into ONE self-contained libjamesdspaidl.so —
+# matching stock's architecture (single drop-in replacement file, no second
+# vendor .so to separately deploy). The SHARED "jamesdsp" target above is
+# unchanged and still what the standalone Gradle app itself dynamically
+# loads at runtime; this is purely an additional build output for that one
+# other consumer, not a replacement.
+add_library(jamesdsp_static STATIC
+    ${LIBJAMESDSP_SOURCE_FILES}
+    EELStdOutExtension.c EELStdOutExtension.h
+    lua_bridge.c
+    lsp_wrap.cpp
+    chain_modules.c
+    $<TARGET_OBJECTS:lsp_dsp_obj>
+    ${LUA_SOURCES})
+
+target_compile_options(jamesdsp_static PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:-std=gnu11 -O2 -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration>
+    $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
+target_include_directories(jamesdsp_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-units/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(jamesdsp_static PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX)
+set_target_properties(jamesdsp_static PROPERTIES OUTPUT_NAME jamesdsp_engine_static POSITION_INDEPENDENT_CODE ON)
