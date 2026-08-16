@@ -129,6 +129,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             cache.select(Constants.PREF_LIVEPROG)
             val liveProgEnabled = cache.get(R.string.key_liveprog_enable, false)
             val liveprogFile = cache.get(R.string.key_liveprog_file, "")
+            val luaScript = cache.get(R.string.key_lua_script, "")
 
             cache.select(Constants.PREF_CONVOLVER)
             val convolverEnabled = cache.get(R.string.key_convolver_enable, false)
@@ -154,7 +155,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                     Constants.PREF_CROSSFEED -> setCrossfeed(crossfeedEnabled, crossfeedMode)
                     Constants.PREF_TUBE -> setVacuumTube(tubeEnabled, tubeDrive)
                     Constants.PREF_DDC -> setVdc(ddcEnabled, ddcFile)
-                    Constants.PREF_LIVEPROG -> setLiveprog(liveProgEnabled, liveprogFile)
+                    Constants.PREF_LIVEPROG -> setLiveprog(liveProgEnabled, liveprogFile) and setLuaScript(luaScript)
                     Constants.PREF_CONVOLVER -> setConvolver(convolverEnabled, convolverFile, convolverMode, convolverAdvImp)
                     else -> true
                 }
@@ -402,6 +403,17 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             null
         }
 
+    // Paste-box loader for the native Lua bridge (cmd 10020 in jamesdsp.c) — a
+    // separate scripting VM from the EEL Liveprog above, used for the
+    // audio-reactive property tree (tick()/jdsp.* API), not audio DSP.
+    // Blank input is a no-op rather than an unload, so clearing the text box
+    // doesn't kill an already-running script.
+    fun setLuaScript(script: String): Boolean {
+        if (script.isBlank())
+            return true
+        return setLuaScriptInternal(script)
+    }
+
     // Effect config
     abstract fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean
     abstract fun setReverb(enable: Boolean, preset: Int): Boolean
@@ -422,6 +434,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean
     protected abstract fun setLiveprogInternal(enable: Boolean, name: String, script: String): Boolean
+    protected abstract fun setLuaScriptInternal(script: String): Boolean
 
     // Feature support
     abstract fun supportsEelVmAccess(): Boolean

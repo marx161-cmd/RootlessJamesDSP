@@ -6,9 +6,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.XmlRes
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.Preference.SummaryProvider
 import androidx.preference.PreferenceFragmentCompat
@@ -167,6 +169,13 @@ class PreferenceGroupFragment : PreferenceFragmentCompat(), KoinComponent {
                     intent.putExtra(LiveprogEditorActivity.EXTRA_TARGET_FILE, FileLibraryPreference.createFullPathNullCompat(requireContext(), liveprogFile?.value))
                     startActivity(intent)
                     true
+                }
+
+                findPreference<EditTextPreference>(getString(R.string.key_lua_script))?.setOnBindEditTextListener { editText ->
+                    editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                    editText.setSingleLine(false)
+                    editText.minLines = 10
+                    editText.typeface = android.graphics.Typeface.MONOSPACE
                 }
             }
             R.xml.dsp_graphiceq_preferences -> {

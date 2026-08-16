@@ -94,11 +94,15 @@ function tick()
     peak_hold = peak_hold + (raw - peak_hold) * PEAK_DECAY
   end
 
-  local f = io.open(OUTPUT_PATH, "w")
+  local f, open_err = io.open(OUTPUT_PATH, "w")
   if f then
     f:write(string.format(
       "audio_level=%.4f\naudio_mood=%.4f\naudio_peak=%.4f\n",
       smoothed, fullness, peak_hold))
     f:close()
+  else
+    -- Diagnostic-only: io.open() failures here were previously silent,
+    -- making the missing audio_bridge.txt bug unfalsifiable from outside.
+    jdsp.log("error", "reactive.lua: io.open(" .. OUTPUT_PATH .. ") failed: " .. tostring(open_err))
   end
 end

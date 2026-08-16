@@ -187,6 +187,10 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         return JamesDspWrapper.setLiveprog(handle, enable, name, script)
     }
 
+    // The Lua property-tree bridge only exists in the vendor-tree engine
+    // (JamesDspRemoteEngine); this local JNI wrapper has no equivalent VM.
+    override fun setLuaScriptInternal(script: String): Boolean { return true }
+
     // Feature support
     override fun supportsEelVmAccess(): Boolean { return true }
     override fun supportsCustomCrossfeed(): Boolean { return true }

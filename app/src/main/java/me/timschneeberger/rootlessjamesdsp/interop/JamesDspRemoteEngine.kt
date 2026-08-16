@@ -297,6 +297,22 @@ class JamesDspRemoteEngine(
         return effect.setParameter(1213, enable.toShort()) == AudioEffect.SUCCESS
     }
 
+    // No native hash readback for this path (unlike liveprogHash/30002), so
+    // dedup locally against what we last actually sent, purely to avoid
+    // resending the same script on every preference-sync tick.
+    private var lastLuaScriptCrc: Int? = null
+
+    override fun setLuaScriptInternal(script: String): Boolean {
+        val currentCrc = script.crc()
+        if (lastLuaScriptCrc == currentCrc)
+            return true
+
+        val result = effect.setParameterCharBuffer(12001, 10020, script) == AudioEffect.SUCCESS
+        if (result)
+            lastLuaScriptCrc = currentCrc
+        return result
+    }
+
     // Feature support
     override fun supportsEelVmAccess(): Boolean { return false }
     override fun supportsCustomCrossfeed(): Boolean { return false }

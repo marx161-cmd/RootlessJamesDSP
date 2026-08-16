@@ -198,6 +198,10 @@
     <string name="liveprog_edit_header">Edit selected script</string>
     <string name="liveprog_edit">Open active script in built-in editor</string>
 
+    <string name="lua_script_title">Lua bridge script (paste)</string>
+    <string name="lua_script_summary">Paste a Lua script (tick()/jdsp.* API) — loaded directly, no file needed. Separate from Liveprog above.</string>
+    <string name="lua_script_dialog_title">Lua script content</string>
+
     <string name="tube_enable">Analog modelling</string>
     <string name="tube_drive">Preamp</string>
 
