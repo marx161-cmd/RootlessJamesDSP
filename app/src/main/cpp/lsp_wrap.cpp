@@ -115,6 +115,14 @@ struct CompHandle {
     // was an instant step in gain, audible as a click/crack.
     lsp::dspu::Bypass bypass;
     ScratchBufs bufs;
+    // Last-configured parameters, cached in the exact units passed to
+    // lsp_comp_configure() so callers (Lua property setters) can read back
+    // and modify one parameter without re-deriving or stomping the others.
+    // Order: threshold_db, ratio, knee_db, attack_ms, release_ms, hold_ms.
+    float cfg[6];
+    // Deepest VCA gain reduction applied over the last processed block, in
+    // dB. Refreshed each lsp_comp_process() call; 0 while fully bypassed.
+    float cur_reduction_db;
 };
 
 void *lsp_comp_create(float sample_rate) {
@@ -133,6 +141,8 @@ void *lsp_comp_create(float sample_rate) {
     h->bypass.construct();
     h->bypass.init((int)sample_rate); // default 5ms switch time
     h->bypass.set_bypass(true); // starts disabled — matches mbDynEnabled's zero-init default
+    for (int i = 0; i < 6; i++) h->cfg[i] = 0.0f;
+    h->cur_reduction_db = 0.0f;
     return h;
 }
 
@@ -149,6 +159,14 @@ void lsp_comp_configure(void *h, float threshold, float ratio, float knee,
                          float attack_ms, float release_ms, float hold_ms) {
     if (!h) return;
     auto *ch = (CompHandle *)h;
+    // Cache in caller units first — get_config() must always return the most
+    // recently applied values, independent of any internal dB/linear mapping.
+    ch->cfg[0] = threshold;
+    ch->cfg[1] = ratio;
+    ch->cfg[2] = knee;
+    ch->cfg[3] = attack_ms;
+    ch->cfg[4] = release_ms;
+    ch->cfg[5] = hold_ms;
     // Second arg to set_threshold is the *release* threshold relative to
     // the attack threshold, in (0, 1.0]. 0.9 gives a modest, sane release
     // margin instead of the previous formula, which saturated to the 0.99
@@ -167,8 +185,10 @@ void lsp_comp_process(void *h, float *left, float *right, unsigned n, int enable
     auto *ch = (CompHandle *)h;
 
     ch->bypass.set_bypass(!enabled);
-    if (ch->bypass.on())
+    if (ch->bypass.on()) {
+        ch->cur_reduction_db = 0.0f;
         return; // fully settled disabled — zero cost, audio untouched
+    }
 
     const bool blending = ch->bypass.active();
     if (blending) {
@@ -186,10 +206,14 @@ void lsp_comp_process(void *h, float *left, float *right, unsigned n, int enable
 
     ch->comp.process(ch->bufs.gain, ch->bufs.env, ch->bufs.sc, n);
 
+    // Track deepest VCA cut for metering (cur_reduction_db).
+    float min_gain = 1.0f;
     for (unsigned i = 0; i < n; i++) {
+        if (ch->bufs.gain[i] < min_gain) min_gain = ch->bufs.gain[i];
         left[i] *= ch->bufs.gain[i];
         right[i] *= ch->bufs.gain[i];
     }
+    ch->cur_reduction_db = (min_gain > 0.0f) ? -20.0f * log10f(min_gain) : 60.0f;
 
     if (blending) {
         // Crossfade dry/wet over the Bypass switch window instead of the
@@ -197,6 +221,32 @@ void lsp_comp_process(void *h, float *left, float *right, unsigned n, int enable
         ch->bypass.process(left, ch->bufs.dryL, left, n);
         ch->bypass.process(right, ch->bufs.dryR, right, n);
     }
+}
+
+float lsp_comp_get_reduction_db(void *h) {
+    if (!h) return 0.0f;
+    return ((CompHandle *)h)->cur_reduction_db;
+}
+
+void lsp_comp_get_config(void *h, float *threshold_db, float *ratio,
+                         float *knee_db, float *attack_ms, float *release_ms,
+                         float *hold_ms) {
+    if (!h) {
+        if (threshold_db) *threshold_db = 0.0f;
+        if (ratio) *ratio = 0.0f;
+        if (knee_db) *knee_db = 0.0f;
+        if (attack_ms) *attack_ms = 0.0f;
+        if (release_ms) *release_ms = 0.0f;
+        if (hold_ms) *hold_ms = 0.0f;
+        return;
+    }
+    auto *ch = (CompHandle *)h;
+    if (threshold_db) *threshold_db = ch->cfg[0];
+    if (ratio) *ratio = ch->cfg[1];
+    if (knee_db) *knee_db = ch->cfg[2];
+    if (attack_ms) *attack_ms = ch->cfg[3];
+    if (release_ms) *release_ms = ch->cfg[4];
+    if (hold_ms) *hold_ms = ch->cfg[5];
 }
 
 // --- Gate ------------------------------------------------------------------
@@ -210,6 +260,11 @@ struct GateHandle {
     // Reference: gate.cpp's c->sBypass.
     lsp::dspu::Bypass bypass;
     ScratchBufs bufs;
+    // Last-configured parameters in caller units (see CompHandle::cfg).
+    // Order: open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db.
+    float cfg[6];
+    // Deepest attenuation applied over the last processed block, in dB.
+    float cur_reduction_db;
 };
 
 void *lsp_gate_create(float sample_rate) {
@@ -226,6 +281,8 @@ void *lsp_gate_create(float sample_rate) {
     h->bypass.construct();
     h->bypass.init((int)sample_rate);
     h->bypass.set_bypass(true); // starts disabled — matches gateEnabled's zero-init default
+    for (int i = 0; i < 6; i++) h->cfg[i] = 0.0f;
+    h->cur_reduction_db = 0.0f;
     return h;
 }
 
@@ -242,6 +299,12 @@ void lsp_gate_configure(void *h, float open_db, float close_db,
                          float attack_ms, float release_ms, float hold_ms, float reduction_db) {
     if (!h) return;
     auto *gh = (GateHandle *)h;
+    gh->cfg[0] = open_db;
+    gh->cfg[1] = close_db;
+    gh->cfg[2] = attack_ms;
+    gh->cfg[3] = release_ms;
+    gh->cfg[4] = hold_ms;
+    gh->cfg[5] = reduction_db;
     gh->gate.set_open_threshold(db_to_linear(open_db));
     gh->gate.set_close_threshold(db_to_linear(close_db));
     if (attack_ms > 0.0f) gh->gate.set_attack(attack_ms);
@@ -256,8 +319,10 @@ void lsp_gate_process(void *h, float *left, float *right, unsigned n, int enable
     auto *gh = (GateHandle *)h;
 
     gh->bypass.set_bypass(!enabled);
-    if (gh->bypass.on())
+    if (gh->bypass.on()) {
+        gh->cur_reduction_db = 0.0f;
         return; // fully settled disabled — zero cost, audio untouched
+    }
 
     const bool blending = gh->bypass.active();
     if (blending) {
@@ -273,15 +338,52 @@ void lsp_gate_process(void *h, float *left, float *right, unsigned n, int enable
 
     gh->gate.process(gh->bufs.gain, gh->bufs.env, gh->bufs.sc, n);
 
+    // Track deepest attenuation for metering (cur_reduction_db).
+    float min_gain = 1.0f;
     for (unsigned i = 0; i < n; i++) {
+        if (gh->bufs.gain[i] < min_gain) min_gain = gh->bufs.gain[i];
         left[i] *= gh->bufs.gain[i];
         right[i] *= gh->bufs.gain[i];
     }
+    gh->cur_reduction_db = (min_gain > 0.0f) ? -20.0f * log10f(min_gain) : 60.0f;
 
     if (blending) {
         gh->bypass.process(left, gh->bufs.dryL, left, n);
         gh->bypass.process(right, gh->bufs.dryR, right, n);
     }
+}
+
+float lsp_gate_get_reduction_db(void *h) {
+    if (!h) return 0.0f;
+    return ((GateHandle *)h)->cur_reduction_db;
+}
+
+int lsp_gate_is_closed(void *h) {
+    // "Closed" = actively attenuating by more than a trivial amount. During
+    // open/close transitions the applied gain is somewhere between unity and
+    // the reduction setting, so a small threshold avoids flapping on noise.
+    return lsp_gate_get_reduction_db(h) > 1.0f;
+}
+
+void lsp_gate_get_config(void *h, float *open_db, float *close_db,
+                         float *attack_ms, float *release_ms, float *hold_ms,
+                         float *reduction_db) {
+    if (!h) {
+        if (open_db) *open_db = 0.0f;
+        if (close_db) *close_db = 0.0f;
+        if (attack_ms) *attack_ms = 0.0f;
+        if (release_ms) *release_ms = 0.0f;
+        if (hold_ms) *hold_ms = 0.0f;
+        if (reduction_db) *reduction_db = 0.0f;
+        return;
+    }
+    auto *gh = (GateHandle *)h;
+    if (open_db) *open_db = gh->cfg[0];
+    if (close_db) *close_db = gh->cfg[1];
+    if (attack_ms) *attack_ms = gh->cfg[2];
+    if (release_ms) *release_ms = gh->cfg[3];
+    if (hold_ms) *hold_ms = gh->cfg[4];
+    if (reduction_db) *reduction_db = gh->cfg[5];
 }
 
 // --- Limiter ---------------------------------------------------------------
@@ -299,6 +401,11 @@ struct LimiterHandle {
     // matching the reference (not oversampled — see lsp_limiter_create).
     lsp::dspu::Delay delayL, delayR;
     ScratchBufs bufs;
+    // Last-configured parameters in caller units (see CompHandle::cfg).
+    // Order: threshold_db, attack_ms, release_ms, knee_db.
+    float cfg[4];
+    // Deepest VCA gain reduction applied over the last processed block, in dB.
+    float cur_reduction_db;
 };
 
 void *lsp_limiter_create(float sample_rate) {
@@ -317,6 +424,8 @@ void *lsp_limiter_create(float sample_rate) {
     size_t max_delay_samples = (size_t)lsp::dspu::millis_to_samples(sample_rate, 20.0f);
     h->delayL.init(max_delay_samples);
     h->delayR.init(max_delay_samples);
+    for (int i = 0; i < 4; i++) h->cfg[i] = 0.0f;
+    h->cur_reduction_db = 0.0f;
     return h;
 }
 
@@ -331,6 +440,10 @@ void lsp_limiter_configure(void *h, float threshold_db, float attack_ms,
                             float release_ms, float knee_db) {
     if (!h) return;
     auto *lh = (LimiterHandle *)h;
+    lh->cfg[0] = threshold_db;
+    lh->cfg[1] = attack_ms;
+    lh->cfg[2] = release_ms;
+    lh->cfg[3] = knee_db;
     lh->limiter.set_threshold(db_to_linear(threshold_db), false);
     if (attack_ms > 0.0f) lh->limiter.set_attack(attack_ms);
     if (release_ms > 0.0f) lh->limiter.set_release(release_ms);
@@ -367,10 +480,41 @@ void lsp_limiter_process(void *h, float *left, float *right, unsigned n) {
     // a signal that is `latency` samples behind what's fed in now.
     lh->limiter.process(lh->bufs.gain, lh->bufs.sc, n);
 
+    // Track deepest VCA cut for metering (cur_reduction_db).
+    float min_gain = 1.0f;
+    for (unsigned i = 0; i < n; i++)
+        if (lh->bufs.gain[i] < min_gain) min_gain = lh->bufs.gain[i];
+    lh->cur_reduction_db = (min_gain > 0.0f) ? -20.0f * log10f(min_gain) : 60.0f;
+
     // Delay the actual audio by that same latency, then apply the gain
     // curve to the now-time-aligned result — Delay::process's 3-arg-plus-
     // gain overload does both in one pass, in place (dst==src is a
     // documented fast path in Delay::process, not a hazard).
     lh->delayL.process(left, left, lh->bufs.gain, n);
     lh->delayR.process(right, right, lh->bufs.gain, n);
+}
+
+float lsp_limiter_get_reduction_db(void *h) {
+    if (!h) return 0.0f;
+    return ((LimiterHandle *)h)->cur_reduction_db;
+}
+
+int lsp_limiter_is_limiting(void *h) {
+    return lsp_limiter_get_reduction_db(h) > 0.5f;
+}
+
+void lsp_limiter_get_config(void *h, float *threshold_db, float *attack_ms,
+                            float *release_ms, float *knee_db) {
+    if (!h) {
+        if (threshold_db) *threshold_db = 0.0f;
+        if (attack_ms) *attack_ms = 0.0f;
+        if (release_ms) *release_ms = 0.0f;
+        if (knee_db) *knee_db = 0.0f;
+        return;
+    }
+    auto *lh = (LimiterHandle *)h;
+    if (threshold_db) *threshold_db = lh->cfg[0];
+    if (attack_ms) *attack_ms = lh->cfg[1];
+    if (release_ms) *release_ms = lh->cfg[2];
+    if (knee_db) *knee_db = lh->cfg[3];
 }

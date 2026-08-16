@@ -125,3 +125,7 @@ void autogain_process(float *L, float *R, unsigned n) {
     }
     for (unsigned i = 0; i < n; i++) { L[i] *= g_ag.gain; R[i] *= g_ag.gain; }
 }
+
+float autogain_get_gain_db(void) {
+    return g_ag.gain > 0.0f ? 20.0f * log10f(g_ag.gain) : -120.0f;
+}

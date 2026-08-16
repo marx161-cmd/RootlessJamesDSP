@@ -17,6 +17,10 @@ void gate_init(void *g, float open_db, float close_db, float attack_s,
 void gate_process(void *g, float *L, float *R, unsigned n);
 void autogain_process(float *L, float *R, unsigned n);
 
+// Current applied AutoGain correction, in dB (0 when disabled). Live value —
+// reads the same integrator autogain_process() updates each block.
+float autogain_get_gain_db(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -47,6 +47,16 @@ void lua_bridge_set_postgain(float gain);
 void lua_bridge_set_module_states(const int *states, int count);
 void lua_bridge_set_sample_rate(int sr);
 
+// Push a numeric telemetry value into the named-property value store,
+// readable from Lua via jdsp.get_property(name) / get_property_number() /
+// get_property_bool(). Unlike lua_bridge_register_property() (which wires a
+// getter/setter function pair), this is a plain name→value cache that the
+// DSP chain's 30Hz tick refreshes every block — the read-side path for live
+// metering values that are already computed in the audio thread, so no C
+// getter function per property is required. Idempotent: re-pushing a name
+// overwrites in place, never grows the table.
+void lua_bridge_set_property_number(const char *name, double value);
+
 // --- Property callback bridge (called from jamesdsp.c on AIDL param set) -
 
 // Register a named property that scripts can get/set/observe.

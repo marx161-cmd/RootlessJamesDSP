@@ -82,6 +82,20 @@ typedef struct {
 static jdsp_prop_t g_props[JDSP_MAX_PROPS];
 static int         g_prop_count = 0;
 
+// Numeric telemetry value store. Populated from the DSP audio thread's 30Hz
+// tick via lua_bridge_set_property_number() and read by the get_property*
+// accessors below as a fallback when the name has no registered getter. This
+// is the read-side path for live metering values (gain reduction, band
+// energies, etc.) that the audio thread already computes — separate from the
+// getter/setter pair registry above, which is for script-controllable params.
+#define JDSP_MAX_PROP_VALUES 128
+typedef struct {
+    char   name[64];
+    double value;
+} jdsp_prop_value_t;
+static jdsp_prop_value_t g_prop_values[JDSP_MAX_PROP_VALUES];
+static int                g_prop_value_count = 0;
+
 // ============================================================================
 // Script metadata
 // ============================================================================
@@ -246,6 +260,18 @@ static int jdsp_cancel_timer(lua_State *L) {
 
 // --- Properties ---------------------------------------------------------
 
+// Look up a telemetry value in the value store (the tick-pushed cache).
+// Returns 1 and stores the value in *out if found, 0 otherwise.
+static int prop_value_lookup(const char *name, double *out) {
+    for (int i = 0; i < g_prop_value_count; i++) {
+        if (strcmp(name, g_prop_values[i].name) == 0) {
+            if (out) *out = g_prop_values[i].value;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int jdsp_get_property(lua_State *L) {
     const char *name = luaL_checkstring(L, 1);
     for (int i = 0; i < g_prop_count; i++) {
@@ -258,6 +284,11 @@ static int jdsp_get_property(lua_State *L) {
             lua_pushstring(L, "no getter registered");
             return 2;
         }
+    }
+    double v;
+    if (prop_value_lookup(name, &v)) {
+        lua_pushnumber(L, v);
+        return 1;
     }
     lua_pushnil(L);
     lua_pushstring(L, "unknown property");
@@ -276,6 +307,11 @@ static int jdsp_get_property_bool(lua_State *L) {
             return 1;
         }
     }
+    double v;
+    if (prop_value_lookup(name, &v)) {
+        lua_pushboolean(L, v != 0.0);
+        return 1;
+    }
     lua_pushboolean(L, 0);
     return 1;
 }
@@ -291,6 +327,11 @@ static int jdsp_get_property_number(lua_State *L) {
             lua_pushnumber(L, 0.0);
             return 1;
         }
+    }
+    double v;
+    if (prop_value_lookup(name, &v)) {
+        lua_pushnumber(L, v);
+        return 1;
     }
     lua_pushnumber(L, 0.0);
     return 1;
@@ -458,63 +499,68 @@ static int jdsp_command_raw(lua_State *L) {
     return 1;
 }
 
-// jdsp.toggle_module(name, enable) — convenient module on/off
-// Maps module name → AIDL enable command. Falls back to command_raw.
-static int jdsp_toggle_module(lua_State *L) {
-    const char *name = luaL_checkstring(L, 1);
-    int enable = lua_toboolean(L, 2);
+// Plain C toggle helper — does the actual module enable/disable dispatch.
+// Shared by jdsp_toggle_module / jdsp_command / jdsp_commandv so the
+// name→command mapping lives in exactly one place. Returns 0 on success,
+// -1 for unknown module, or the handler's non-zero error code.
+static int toggle_module_dispatch(const char *name, int enable) {
+    if (!g_cmd_handler) return -1;
 
-    if (!g_cmd_handler) { lua_pushboolean(L, 0); return 1; }
-
-    // Module name → command ID mapping (matches jamesdsp.c dispatch)
+    // Module name → command ID mapping (matches jamesdsp.c dispatch). These
+    // are pure enable/disable commands (params[0] = 0/1); gate/compressor are
+    // handled separately below because their param bundles are not enable-only.
     static const struct { const char *name; int cmd; } map[] = {
+        {"bassboost",     1201},
         {"equalizer",     1202},
         {"reverb",        1203},
         {"stereo",        1204},
         {"convolver",     1205},
-        {"crossfeed",     1208},
+        {"tube",          1206},
         {"autogain",      1207},
-        {"arb_eq",        1210},
+        {"crossfeed",     1208},
+        {"arbeq",         1210},
+        {"arb_eq",        1210}, // legacy alias
         {"ddc",           1212},
         {"liveprog",      1213},
-        // Gate/compressor use the 10100/10101 param bundle; send params as well
-        // For simple toggle use the existing gateEnabled/mbDynEnabled flags directly
         {NULL, 0}
     };
 
-    // Check named toggle commands first
     for (int i = 0; map[i].name; i++) {
         if (strcmp(name, map[i].name) == 0) {
             float p = (float)enable;
-            int rc = g_cmd_handler(map[i].cmd, &p, 1);
-            lua_pushboolean(L, rc == 0);
-            return 1;
+            return g_cmd_handler(map[i].cmd, &p, 1);
         }
     }
 
-    // Gate/compressor/tube are enabled via their param-setter commands
+    // Gate/compressor: enable flag lives on the jdsp struct and drives the
+    // LSP wrapper's internal Bypass crossfade each block — flipping it alone
+    // is sufficient to toggle, and re-sending a fixed param preset here would
+    // silently stomp whatever the user actually configured. Send enable-only
+    // (nparams==1); the dispatch handler flips the flag without reconfiguring.
     if (strcmp(name, "gate") == 0) {
-        float p[7] = {(float)enable, -50.f, -58.f, 2.f, 100.f, 12.7f, -25.3f};
-        int rc = g_cmd_handler(10100, p, 7);
-        lua_pushboolean(L, rc == 0);
-        return 1;
+        float p = (float)enable;
+        return g_cmd_handler(10100, &p, 1);
     }
     if (strcmp(name, "compressor") == 0) {
-        float p[7] = {(float)enable, -15.3f, 2.9f, 0.6f, 12.7f, 130.6f, 10.f};
-        int rc = g_cmd_handler(10101, p, 7);
-        lua_pushboolean(L, rc == 0);
-        return 1;
-    }
-    if (strcmp(name, "tube") == 0) {
-        float p = enable ? 2.0f : 0.0f;
-        int rc = g_cmd_handler(150, &p, 1);
-        lua_pushboolean(L, rc == 0);
-        return 1;
+        float p = (float)enable;
+        return g_cmd_handler(10101, &p, 1);
     }
 
-    lua_pushboolean(L, 0);
-    lua_pushstring(L, "unknown module");
-    return 2;
+    return -1; // unknown module
+}
+
+// jdsp.toggle_module(name, enable) — convenient module on/off
+static int jdsp_toggle_module(lua_State *L) {
+    const char *name = luaL_checkstring(L, 1);
+    int enable = lua_toboolean(L, 2);
+    int rc = toggle_module_dispatch(name, enable);
+    if (rc < 0) {
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, "unknown module");
+        return 2;
+    }
+    lua_pushboolean(L, rc == 0);
+    return 1;
 }
 
 // Legacy command() — parses "name value" string
@@ -526,8 +572,18 @@ static int jdsp_command(lua_State *L) {
     if (sscanf(cmd, "%63s %15s", mod, action) == 2) {
         int enable = (strcmp(action, "enable") == 0 || strcmp(action, "1") == 0 ||
                       strcmp(action, "on") == 0 || strcmp(action, "true") == 0);
-        return jdsp_toggle_module(L); // tricky: need to re-setup args
-        // Actually, better to dispatch to toggle_module with parsed args
+        // Previously this called jdsp_toggle_module(L) directly, which reads
+        // its args from absolute Lua indices 1/2 — the original single string
+        // arg, not the parsed mod/action. Route through the plain C helper so
+        // the parsed values are actually used.
+        int rc = toggle_module_dispatch(mod, enable);
+        if (rc < 0) {
+            lua_pushboolean(L, 0);
+            lua_pushstring(L, "unknown module");
+            return 2;
+        }
+        lua_pushboolean(L, rc == 0);
+        return 1;
     }
     // Fallback: raw dispatch via g_cmd_handler if present
     if (g_cmd_handler) {
@@ -549,9 +605,14 @@ static int jdsp_commandv(lua_State *L) {
         const char *act = lua_tostring(L, 3);
         if (mod && act) {
             int en = (strcmp(act, "enable") == 0 || strcmp(act, "on") == 0 || strcmp(act, "1") == 0);
-            lua_pushstring(L, mod);
-            lua_pushboolean(L, en);
-            return jdsp_toggle_module(L);
+            int rc = toggle_module_dispatch(mod, en);
+            if (rc < 0) {
+                lua_pushboolean(L, 0);
+                lua_pushstring(L, "unknown module");
+                return 2;
+            }
+            lua_pushboolean(L, rc == 0);
+            return 1;
         }
     }
     lua_pushboolean(L, 1);
@@ -1233,6 +1294,17 @@ void lua_bridge_set_sample_rate(int sr) {
 void lua_bridge_register_property(const char *name,
                                    jdsp_prop_getter getter,
                                    jdsp_prop_setter setter) {
+    if (!name) return;
+    // Idempotent: re-registering an existing name replaces its getter/setter
+    // in place rather than appending a duplicate entry (which would overflow
+    // the fixed table across re-inits).
+    for (int i = 0; i < g_prop_count; i++) {
+        if (strcmp(name, g_props[i].name) == 0) {
+            g_props[i].getter = getter;
+            g_props[i].setter = setter;
+            return;
+        }
+    }
     if (g_prop_count >= JDSP_MAX_PROPS) return;
     jdsp_prop_t *p = &g_props[g_prop_count++];
     strncpy(p->name, name, sizeof(p->name) - 1);
@@ -1240,6 +1312,21 @@ void lua_bridge_register_property(const char *name,
     p->getter = getter;
     p->setter = setter;
     p->observer_ref = LUA_NOREF;
+}
+
+void lua_bridge_set_property_number(const char *name, double value) {
+    if (!name) return;
+    for (int i = 0; i < g_prop_value_count; i++) {
+        if (strcmp(name, g_prop_values[i].name) == 0) {
+            g_prop_values[i].value = value;
+            return;
+        }
+    }
+    if (g_prop_value_count >= JDSP_MAX_PROP_VALUES) return;
+    jdsp_prop_value_t *v = &g_prop_values[g_prop_value_count++];
+    strncpy(v->name, name, sizeof(v->name) - 1);
+    v->name[sizeof(v->name) - 1] = '\0';
+    v->value = value;
 }
 
 // ============================================================================
