@@ -42,6 +42,9 @@ file(GLOB LSP_DSP_SOURCES
     lsp-dsp-units/src/main/util/Delay.cpp
     lsp-dsp-units/src/main/util/Sidechain.cpp
     lsp-dsp-units/src/main/util/RawRingBuffer.cpp
+    lsp-dsp-units/src/main/util/Oversampler.cpp
+    lsp-dsp-units/src/main/util/Dither.cpp
+    lsp-dsp-units/src/main/util/Randomizer.cpp
     lsp-dsp-units/src/main/ctl/Bypass.cpp
     lsp-dsp-units/src/main/filters/Equalizer.cpp
     lsp-dsp-units/src/main/filters/Filter.cpp
@@ -58,8 +61,9 @@ target_include_directories(lsp_dsp_obj PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include
 )
-target_compile_definitions(lsp_dsp_obj PRIVATE LSP_DSP_UNITS_PUBLIC=)
+target_compile_definitions(lsp_dsp_obj PRIVATE LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 
 # Lua 5.4.8 — embedded scripting engine
 file(GLOB LUA_SOURCES CONFIGURE_DEPENDS
@@ -120,6 +124,9 @@ add_library(jamesdsp SHARED
     EELStdOutExtension.c EELStdOutExtension.h
     lua_bridge.c
     lsp_wrap.cpp
+    lsp_wrap_compressor.cpp
+    lsp_wrap_limiter.cpp
+    lsp_runtime_system_shim.cpp
     chain_modules.c
     $<TARGET_OBJECTS:lsp_dsp_obj>
     ${LUA_SOURCES})
@@ -133,8 +140,9 @@ target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
+target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(jamesdsp PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX)
+target_compile_definitions(jamesdsp PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp PROPERTIES OUTPUT_NAME jamesdsp_engine)
 
 find_library(log-lib log)
@@ -152,6 +160,9 @@ add_library(jamesdsp_static STATIC
     EELStdOutExtension.c EELStdOutExtension.h
     lua_bridge.c
     lsp_wrap.cpp
+    lsp_wrap_compressor.cpp
+    lsp_wrap_limiter.cpp
+    lsp_runtime_system_shim.cpp
     chain_modules.c
     $<TARGET_OBJECTS:lsp_dsp_obj>
     ${LUA_SOURCES})
@@ -165,6 +176,7 @@ target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/l
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(jamesdsp_static PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX)
+target_compile_definitions(jamesdsp_static PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp_static PROPERTIES OUTPUT_NAME jamesdsp_engine_static POSITION_INDEPENDENT_CODE ON)
