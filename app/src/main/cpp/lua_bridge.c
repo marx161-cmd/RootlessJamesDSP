@@ -107,8 +107,12 @@ static char g_script_dir[512] = {0};
 // ============================================================================
 
 // --- Band energy --------------------------------------------------------
+// Must match jdsp_header.h's LUA_BAND_METER_COUNT (the native meter writes
+// this many taps per tick). Kept as a local constant because lua_bridge.c
+// does not include jdsp_header.h (separate build unit from the engine).
+#define JDSP_BAND_ENERGY_MAX (108)
 
-static float g_band_energy[16] = {0};
+static float g_band_energy[JDSP_BAND_ENERGY_MAX] = {0};
 static int   g_num_bands = 0;
 
 static int jdsp_get_band_energy(lua_State *L) {
@@ -1265,7 +1269,7 @@ void lua_bridge_event(const char *event_name) {
 
 void lua_bridge_set_bands(const float *energies, int num_bands) {
     if (num_bands < 0) num_bands = 0;
-    int n = num_bands < 16 ? num_bands : 16;
+    int n = num_bands < JDSP_BAND_ENERGY_MAX ? num_bands : JDSP_BAND_ENERGY_MAX;
     g_num_bands = n;
     memcpy(g_band_energy, energies, n * sizeof(float));
 }
