@@ -5,12 +5,21 @@ cmake_minimum_required(VERSION 3.22.1)
 # work isn't actually reflected in the real build yet, since this flag
 # predates that discussion. Flagged, not touched here — dialing it back to
 # -O3 is a separate, deliberate decision, not bundled into this LTO change.
+project(jamesdsp LANGUAGES C CXX)
+project(jamesdsp-wrapper LANGUAGES CXX)
+
+# These flag lines used to sit ABOVE project(). The NDK's legacy toolchain
+# file (android-legacy.toolchain.cmake:616) does set(CMAKE_C_FLAGS "" CACHE)
+# while CMP0126 is unset, which deletes a same-named normal variable -- but
+# only on a FRESH configure (when the cache entry does not exist yet). So a
+# first configure silently built WITHOUT -Ofast/-flto/-DDEBUG and every later
+# re-configure of the same dir built WITH them. Gradle's .cxx dirs get
+# re-configured, standalone ones don't; the two produced different binaries
+# from the same source. Setting the flags after project() makes it
+# deterministic (verified 2026-10-21 with cmake --trace-expand).
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration -flto")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -flto")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")
-
-project(jamesdsp LANGUAGES C CXX)
-project(jamesdsp-wrapper LANGUAGES CXX)
 
 # JDSP_SVE2_FFT_X2: build-level guard shared by codelet.c/.h AND
 # FFTConvolver.c/.h, so both agree on whether the SVE2 _x2 FFT variants
@@ -22,6 +31,17 @@ project(jamesdsp-wrapper LANGUAGES CXX)
 # every target defined by this file, including the wrapper, sees it.
 if(ANDROID_ABI STREQUAL "arm64-v8a")
     add_compile_definitions(JDSP_SVE2_FFT_X2)
+endif()
+
+# JDSP_LUA_BRIDGE: ON (default) embeds the Lua 5.4 scripting bridge and the
+# 108-band chroma meter (bands.bin shm) into the engine -- the "full" build.
+# OFF builds the "audio-only" variant: no Lua interpreter, no meter, no file
+# I/O from inside the effect. jdsp_header.h struct layouts are identical in
+# both variants, so the vendor AIDL wrapper links against either one without
+# a header re-sync (see the under-allocation gotcha in HANDOFF.md section 7).
+option(JDSP_LUA_BRIDGE "Embed the Lua bridge + 108-band meter (full build)" ON)
+if(JDSP_LUA_BRIDGE)
+    add_compile_definitions(JDSP_LUA_BRIDGE=1)
 endif()
 
 include(libjdspimptoolbox/CMakeLists.txt)
@@ -84,6 +104,13 @@ file(GLOB LUA_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_LIST_DIR}/lua/src/lundump.c   ${CMAKE_CURRENT_LIST_DIR}/lua/src/lutf8lib.c
     ${CMAKE_CURRENT_LIST_DIR}/lua/src/lvm.c       ${CMAKE_CURRENT_LIST_DIR}/lua/src/lzio.c
 )
+if(JDSP_LUA_BRIDGE)
+    set(JDSP_LUA_BRIDGE_SOURCES lua_bridge.c ${LUA_SOURCES})
+    set(JDSP_LUA_BRIDGE_DEFS LUA_COMPAT_5_3 LUA_USE_POSIX)
+else()
+    set(JDSP_LUA_BRIDGE_SOURCES "")
+    set(JDSP_LUA_BRIDGE_DEFS "")
+endif()
 
 # JamesDSP core (C) — exclude replaced modules
 file(GLOB_RECURSE LIBJAMESDSP_SOURCE_FILES CONFIGURE_DEPENDS
@@ -122,27 +149,28 @@ endif()
 add_library(jamesdsp SHARED
     ${LIBJAMESDSP_SOURCE_FILES}
     EELStdOutExtension.c EELStdOutExtension.h
-    lua_bridge.c
     lsp_wrap.cpp
     lsp_wrap_compressor.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
     $<TARGET_OBJECTS:lsp_dsp_obj>
-    ${LUA_SOURCES})
+    ${JDSP_LUA_BRIDGE_SOURCES})
 
 target_compile_options(jamesdsp PRIVATE
     $<$<COMPILE_LANGUAGE:C>:-std=gnu11 -O2 -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration>
     $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
 target_include_directories(jamesdsp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/)
-target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+if(JDSP_LUA_BRIDGE)
+    target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+endif()
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-units/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(jamesdsp PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
+target_compile_definitions(jamesdsp PRIVATE ${JDSP_LUA_BRIDGE_DEFS} LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp PROPERTIES OUTPUT_NAME jamesdsp_engine)
 
 find_library(log-lib log)
@@ -158,25 +186,26 @@ target_link_libraries(jamesdsp PRIVATE ${log-lib})
 add_library(jamesdsp_static STATIC
     ${LIBJAMESDSP_SOURCE_FILES}
     EELStdOutExtension.c EELStdOutExtension.h
-    lua_bridge.c
     lsp_wrap.cpp
     lsp_wrap_compressor.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
     $<TARGET_OBJECTS:lsp_dsp_obj>
-    ${LUA_SOURCES})
+    ${JDSP_LUA_BRIDGE_SOURCES})
 
 target_compile_options(jamesdsp_static PRIVATE
     $<$<COMPILE_LANGUAGE:C>:-std=gnu11 -O2 -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration>
     $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
 target_include_directories(jamesdsp_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/libjamesdsp/Main/libjamesdsp/jni/jamesdsp/jdsp/)
-target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+if(JDSP_LUA_BRIDGE)
+    target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lua/src)
+endif()
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-units/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(jamesdsp_static PRIVATE LUA_COMPAT_5_3 LUA_USE_POSIX LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
+target_compile_definitions(jamesdsp_static PRIVATE ${JDSP_LUA_BRIDGE_DEFS} LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp_static PROPERTIES OUTPUT_NAME jamesdsp_engine_static POSITION_INDEPENDENT_CODE ON)

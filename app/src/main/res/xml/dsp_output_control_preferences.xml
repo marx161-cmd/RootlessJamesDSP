@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+  <!-- Output limiter on/off (2026-10-21). Default ON = stock behaviour; the
+       limiter is the clip guard after post gain. Switching it off drops its
+       ~5 ms lookahead in one step (one tick at the toggle). -->
   <me.timschneeberger.rootlessjamesdsp.preference.SwitchPreferenceGroup
-      android:title="@string/output_control_header"
-      android:enabled="false"
-      android:defaultValue="false"
-      android:icon="@drawable/ic_twotone_volume_up_24dp"
-      android:selectable="false"
-      android:persistent="false" />
+      android:key="@string/key_limiter_enable"
+      android:title="@string/output_limiter_enable"
+      android:defaultValue="true"
+      android:disableDependentsState="false"
+      android:icon="@drawable/ic_twotone_volume_up_24dp" />
   <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
       android:key="@string/key_limiter_threshold"
       android:title="@string/output_limiter_threshold"

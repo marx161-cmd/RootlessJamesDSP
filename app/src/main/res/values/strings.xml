@@ -210,6 +210,7 @@
     <string name="output_limiter_attack">Limiter attack</string>
     <string name="output_limiter_release">Limiter release</string>
     <string name="output_limiter_knee">Limiter knee</string>
+    <string name="output_limiter_enable">Output limiter</string>
     <string name="output_control_postgain">Post gain</string>
 
     <string name="gate_enable">Gate</string>

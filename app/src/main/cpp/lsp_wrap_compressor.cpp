@@ -256,6 +256,24 @@ void lsp_comp_configure(void *h, float threshold, float ratio, float knee,
     if (!h) return;
     auto *hd = (CompHandle *)h;
 
+    // Hardening (review 2026-10-21): the real plugin's host clamps every port
+    // to its metadata range; JamesDSP's AIDL/Lua surface does not, and the
+    // app's knee slider goes down to 0.0. knee <= 0 makes
+    // dspu::Compressor::update_settings() compute start = thr*0, end = thr/0,
+    // hermite over logf(0)/logf(inf) -> NaN gain for every sample, and the
+    // always-on output limiter's peak loop (NaN is never <= threshold) then
+    // spins forever on the audio thread. Clamp to the real port ranges
+    // (compressor.h: KNEE_MIN = -24 dB, KNEE_MAX = 0 dB, RATIO 1..100).
+    // `!(x >= lo)` form also catches NaN.
+    if (!(knee >= 0.0630957f)) knee = 0.0630957f;
+    if (knee > 1.0f) knee = 1.0f;
+    if (!(ratio >= 1.0f)) ratio = 1.0f;
+    if (ratio > 100.0f) ratio = 100.0f;
+    if (!(threshold == threshold)) threshold = -24.0f;
+    if (!(attack_ms >= 0.0f)) attack_ms = 0.0f;
+    if (!(release_ms >= 0.0f)) release_ms = 0.0f;
+    if (!(hold_ms >= 0.0f)) hold_ms = 0.0f;
+
     hd->cfg[0] = threshold;
     hd->cfg[1] = ratio;
     hd->cfg[2] = knee;

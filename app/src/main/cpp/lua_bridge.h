@@ -12,6 +12,10 @@
 extern "C" {
 #endif
 
+// JDSP_LUA_BRIDGE is defined (=1) by CMakeLists.txt for the full build and
+// left undefined for the audio-only build (option JDSP_LUA_BRIDGE=OFF).
+#if JDSP_LUA_BRIDGE
+
 // --- Lifecycle ----------------------------------------------------------
 
 int  lua_bridge_init(void);
@@ -91,6 +95,35 @@ void lua_bridge_set_command_handler(jdsp_cmd_handler handler);
 
 // Set by init; scripts can query via jdsp.get_script_directory()
 void lua_bridge_set_script_dir(const char *dir);
+
+#else  // !JDSP_LUA_BRIDGE -- audio-only build: every bridge call compiles to
+       // nothing. Same signatures as above so jdspController.c/jamesdsp.c
+       // need no #ifdefs at the call sites.
+
+typedef double (*jdsp_prop_getter)(void);
+typedef int    (*jdsp_prop_setter)(double value);
+typedef int (*jdsp_cmd_handler)(int cmd, const float *params, int nparams);
+
+static inline int  lua_bridge_init(void) { return 0; }
+static inline void lua_bridge_destroy(void) {}
+static inline int  lua_bridge_load_script(const char *script) { (void)script; return 0; }
+static inline void lua_bridge_tick(const float *pcm_buffer, int num_samples) { (void)pcm_buffer; (void)num_samples; }
+static inline void lua_bridge_process_sample(float left, float right) { (void)left; (void)right; }
+static inline int  lua_bridge_process_block(float *buf_L, float *buf_R, int n) { (void)buf_L; (void)buf_R; (void)n; return 0; }
+static inline void lua_bridge_event(const char *event_name) { (void)event_name; }
+static inline void lua_bridge_set_bands(const float *energies, int num_bands) { (void)energies; (void)num_bands; }
+static inline void lua_bridge_set_audio_level(float level) { (void)level; }
+static inline void lua_bridge_set_postgain(float gain) { (void)gain; }
+static inline void lua_bridge_set_module_states(const int *states, int count) { (void)states; (void)count; }
+static inline void lua_bridge_set_sample_rate(int sr) { (void)sr; }
+static inline void lua_bridge_set_property_number(const char *name, double value) { (void)name; (void)value; }
+static inline void lua_bridge_register_property(const char *name, jdsp_prop_getter getter, jdsp_prop_setter setter) { (void)name; (void)getter; (void)setter; }
+static inline const char *lua_bridge_get_error(void) { return ""; }
+static inline void lua_bridge_hook_fire(const char *name, float *L, float *R, int n) { (void)name; (void)L; (void)R; (void)n; }
+static inline void lua_bridge_set_command_handler(jdsp_cmd_handler handler) { (void)handler; }
+static inline void lua_bridge_set_script_dir(const char *dir) { (void)dir; }
+
+#endif // JDSP_LUA_BRIDGE
 
 #ifdef __cplusplus
 }

@@ -473,7 +473,10 @@ void lsp_limiter_destroy(void *handle) {
 //                 oversampler that defaults to OM_NONE would never actually
 //                 run, defeating that instruction.)
 //   dithering  -> DITHER_NONE (matches real DITHER_DEFAULT exactly)
-//   alr_on     -> false; alr_attack/alr_release -> ALR_*_DFL (unused while off)
+//   alr_on     -> true (real SWITCH("alr", ..., 1.0f) default -- was pinned
+//                 false until 2026-10-21, which also made knee_level dead:
+//                 dspu::Limiter reads fKnee only inside the ALR branch);
+//                 alr_attack/alr_release -> ALR_*_DFL
 //   boost      -> false (so fOutGain keeps its GAIN_AMP_0_DB default, no
 //                 divide-by-threshold gain compensation)
 //   fInGain / fOutGain / fPreamp -> GAIN_AMP_0_DB (unity; no gain-trim UI)
@@ -501,13 +504,19 @@ void lsp_limiter_configure(void *handle, float threshold_db, float attack_ms,
     const float lk_ahead      = LIMITER_LOOKAHEAD_DFL;
     const float attack        = attack_ms;
     const float release       = release_ms;
-    // Real knee_level (pKneeLevel->value()) is read directly in LINEAR gain
-    // units (port range GAIN_AMP_M_12_DB..GAIN_AMP_P_12_DB); our knee_db
-    // argument is dB, so convert at the boundary the same way threshold_db
-    // is converted above.
-    const float knee_level    = lsp::dspu::db_to_gain(knee_db);
+    // JamesDSP's "limiter knee" is a 0..1 slider (cmd 1500 clamps it to that;
+    // 1.0 = the legacy "no knee"). The real control it drives here is the ALR
+    // knee level, pKneeLevel, linear gain over KNEE_LEVEL_MIN..MAX (-12..+12
+    // dB, default 0 dB): the ALR stage starts easing gain at
+    // threshold * knee_level * -9 dB. Map the slider onto the lower half of
+    // that range so full travel does something and the top (1.0) is the real
+    // default: knee 1.0 -> 0 dB, 0.0 -> -12 dB (ALR starts 12 dB earlier).
+    float knee01 = knee_db;                    // argument name is historical
+    if (!(knee01 >= 0.0f)) knee01 = 0.0f;      // also catches NaN
+    if (knee01 > 1.0f) knee01 = 1.0f;
+    const float knee_level    = lsp::dspu::db_to_gain(-12.0f + 12.0f * knee01);
     const float knee_smooth   = lsp::dspu::db_to_gain(LIMITER_KNEE_SMOOTH_DFL);
-    const bool alr_on         = false;
+    const bool alr_on         = true;          // real plugin default (meta: SWITCH "alr" = 1.0f)
     const float alr_attack    = LIMITER_ALR_ATTACK_DFL;
     const float alr_release   = LIMITER_ALR_RELEASE_DFL;
 

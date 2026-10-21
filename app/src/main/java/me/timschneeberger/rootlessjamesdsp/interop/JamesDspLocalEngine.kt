@@ -92,8 +92,8 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
     // shared abstract signature, not applied. Root/AIDL mode
     // (JamesDspRemoteEngine, what this device actually runs) has the real
     // 5-param path.
-    override fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
-        return JamesDspWrapper.setLimiter(handle, threshold, release) and JamesDspWrapper.setPostGain(handle, postGain)
+    override fun setOutputControl(enable: Boolean, threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
+        return JamesDspWrapper.setLimiter(handle, threshold, release) and JamesDspWrapper.setPostGain(handle, postGain) and JamesDspWrapper.setLimiterEnabled(handle, enable)
     }
 
     override fun setReverb(enable: Boolean, preset: Int): Boolean

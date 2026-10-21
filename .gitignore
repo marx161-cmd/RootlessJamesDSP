@@ -20,3 +20,6 @@ local.properties
 
 # session logs
 logs-*.log
+
+# standalone engine variant builds (build_engine_variant.sh)
+/app/.cxx-variants

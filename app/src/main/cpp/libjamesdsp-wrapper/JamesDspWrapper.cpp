@@ -288,6 +288,13 @@ Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setPostGain(JNI
     return true;
 }
 extern "C" JNIEXPORT jboolean JNICALL
+Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setLimiterEnabled(JNIEnv *env, jobject obj, jlong self, jboolean enable)
+{
+    DECLARE_DSP_B
+    dsp->limiterEnabled = enable ? 1 : 0;
+    return true;
+}
+extern "C" JNIEXPORT jboolean JNICALL
 Java_me_timschneeberger_rootlessjamesdsp_interop_JamesDspWrapper_setMultiEqualizer(JNIEnv *env, jobject obj, jlong self,
                                                                                    jboolean enable, jint filterType, jint interpolationMode,
                                                                                    jdoubleArray bands)

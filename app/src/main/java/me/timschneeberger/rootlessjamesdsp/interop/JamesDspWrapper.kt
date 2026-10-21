@@ -29,6 +29,7 @@ object JamesDspWrapper {
     // Effect config
     external fun setLimiter(self: JamesDspHandle, threshold: Float, release: Float): Boolean
     external fun setPostGain(self: JamesDspHandle, postGain: Float): Boolean
+    external fun setLimiterEnabled(self: JamesDspHandle, enable: Boolean): Boolean
     external fun setMultiEqualizer(self: JamesDspHandle, enable: Boolean, filterType: Int, interpolationMode: Int, bands: DoubleArray): Boolean
     external fun setVdc(self: JamesDspHandle, enable: Boolean, vdcContents: String): Boolean
     external fun setCompander(self: JamesDspHandle, enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean

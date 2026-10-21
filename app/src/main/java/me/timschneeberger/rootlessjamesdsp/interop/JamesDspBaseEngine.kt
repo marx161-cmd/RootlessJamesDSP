@@ -65,6 +65,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val limiterAttack = cache.get(R.string.key_limiter_attack, 5f)
             val limiterRelease = cache.get(R.string.key_limiter_release, 5f)
             val limiterKnee = cache.get(R.string.key_limiter_knee, 1.0f)
+            val limiterEnabled = cache.get(R.string.key_limiter_enable, true)
 
             cache.select(Constants.PREF_GATE)
             val gateEnabled = cache.get(R.string.key_gate_enable, false)
@@ -142,7 +143,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                 Timber.i("Committing new changes in namespace '$it'")
 
                 val result = when (it) {
-                    Constants.PREF_OUTPUT -> setOutputControl(limiterThreshold, limiterAttack, limiterRelease, limiterKnee, outputPostGain)
+                    Constants.PREF_OUTPUT -> setOutputControl(limiterEnabled, limiterThreshold, limiterAttack, limiterRelease, limiterKnee, outputPostGain)
                     Constants.PREF_GATE -> setGate(gateEnabled, gateOpenThreshold, gateCloseThreshold, gateAttack, gateRelease, gateHold, gateReduction)
                     Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
@@ -415,7 +416,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     }
 
     // Effect config
-    abstract fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean
+    abstract fun setOutputControl(enable: Boolean, threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean
     abstract fun setReverb(enable: Boolean, preset: Int): Boolean
     abstract fun setCrossfeed(enable: Boolean, mode: Int): Boolean
     abstract fun setCrossfeedCustom(enable: Boolean, fcut: Int, feed: Int): Boolean

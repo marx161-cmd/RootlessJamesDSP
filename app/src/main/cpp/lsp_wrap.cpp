@@ -60,37 +60,6 @@ namespace lsp { namespace x86 { struct cpu_features_t {}; void detect_cpu_featur
 
 namespace {
 
-// Shared scratch-buffer holder for the three sidechain-linked wrappers below.
-struct ScratchBufs {
-    float *sc = nullptr;
-    float *env = nullptr;
-    float *gain = nullptr;
-    float *dryL = nullptr;
-    float *dryR = nullptr;
-    unsigned cap = 0;
-    unsigned dryCap = 0;
-
-    void ensure(unsigned n) {
-        if (n <= cap) return;
-        sc = (float *)realloc(sc, n * sizeof(float));
-        env = (float *)realloc(env, n * sizeof(float));
-        gain = (float *)realloc(gain, n * sizeof(float));
-        cap = n;
-    }
-
-    // Only allocated on demand — used solely during the brief Bypass
-    // crossfade window, not on every block, so it stays off the "must cost
-    // ~0 when disabled" hot path.
-    void ensureDry(unsigned n) {
-        if (n <= dryCap) return;
-        dryL = (float *)realloc(dryL, n * sizeof(float));
-        dryR = (float *)realloc(dryR, n * sizeof(float));
-        dryCap = n;
-    }
-
-    ~ScratchBufs() { free(sc); free(env); free(gain); free(dryL); free(dryR); }
-};
-
 } // namespace
 
 // --- Gate ------------------------------------------------------------------
@@ -144,6 +113,10 @@ struct ScratchBufs {
 // sGraph[], pMeter[], pGraph[], fDotIn/fDotOut, vCurve. cur_reduction_db
 // below is JamesDSP's own metering derived from the applied vGain buffer,
 // not a port of the real fDotIn/fDotOut mesh-dot tracking.
+// real: gate.cpp GATE_BUF_SIZE = 0x200 -- the chunk the real plugin's process()
+// loop works in. Same here so scratch is fixed-size and RT-safe.
+static constexpr unsigned GATE_BUF_SIZE = 0x200;
+
 struct GateChannel {
     lsp::dspu::Bypass    sBypass;    // real: channel_t::sBypass
     lsp::dspu::Sidechain sSC;        // real: channel_t::sSC
@@ -159,23 +132,16 @@ struct GateChannel {
     float *vSc = nullptr;
     float *vEnv = nullptr;
     float *vGain = nullptr;
-    unsigned cap = 0;
+    // GATE_BUF_SIZE floats each, allocated once in lsp_gate_create() (review
+    // 2026-10-21: the previous grow-on-demand realloc ran on the audio thread
+    // on the first block and on every block-size growth). The real plugin
+    // processes in GATE_BUF_SIZE chunks over fixed buffers too.
 
     // real: channel_t::fMakeup/fDryGain/fWetGain — see class comment above
     // for why these are pinned instead of UI-driven.
     float fMakeup = 1.0f;
     float fDryGain = 0.0f;
     float fWetGain = 1.0f;
-
-    void ensure(unsigned n) {
-        if (n <= cap) return;
-        vIn   = (float *)realloc(vIn,   n * sizeof(float));
-        vOut  = (float *)realloc(vOut,  n * sizeof(float));
-        vSc   = (float *)realloc(vSc,   n * sizeof(float));
-        vEnv  = (float *)realloc(vEnv,  n * sizeof(float));
-        vGain = (float *)realloc(vGain, n * sizeof(float));
-        cap = n;
-    }
 
     ~GateChannel() { free(vIn); free(vOut); free(vSc); free(vEnv); free(vGain); }
 };
@@ -188,21 +154,13 @@ struct GateHandle {
     // this straight from in_buf[i] (the pre-premix caller buffer) since
     // premix is a no-op for internal-sidechain/no-link — here that's just
     // the raw left/right buffers captured before any in-place processing.
-    float *dryL = nullptr, *dryR = nullptr;
-    unsigned dryCap = 0;
+    float *dryL = nullptr, *dryR = nullptr;   // GATE_BUF_SIZE each, allocated in create()
 
     // Last-configured parameters in caller units (see CompHandle::cfg).
     // Order: open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db.
     float cfg[6];
     // Deepest attenuation applied over the last processed block, in dB.
     float cur_reduction_db = 0.0f;
-
-    void ensureDry(unsigned n) {
-        if (n <= dryCap) return;
-        dryL = (float *)realloc(dryL, n * sizeof(float));
-        dryR = (float *)realloc(dryR, n * sizeof(float));
-        dryCap = n;
-    }
 
     ~GateHandle() { free(dryL); free(dryR); }
 };
@@ -216,9 +174,16 @@ void *lsp_gate_create(float sample_rate) {
     // but buffers are still sized to the real plugin's max rather than
     // starved to size 1.
     const size_t max_delay = (size_t)lsp::dspu::millis_to_samples(sample_rate, 20.0f);
+    h->dryL = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
+    h->dryR = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
 
     for (int i = 0; i < 2; i++) {
         GateChannel &c = h->ch[i];
+        c.vIn   = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
+        c.vOut  = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
+        c.vSc   = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
+        c.vEnv  = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
+        c.vGain = (float *)calloc(GATE_BUF_SIZE, sizeof(float));
 
         c.sBypass.construct();
         c.sBypass.init((int)sample_rate);
@@ -273,6 +238,17 @@ void lsp_gate_configure(void *h, float open_db, float close_db,
                          float attack_ms, float release_ms, float hold_ms, float reduction_db) {
     if (!h) return;
     auto *gh = (GateHandle *)h;
+    // Hardening (review 2026-10-21): the AIDL/Lua surface is not range-limited
+    // like the real plugin's host ports. NaN in -> NaN gain out, and a close
+    // threshold above the open one (two free sliders here; the real plugin
+    // derives close = open * ratio<=0dB) makes the gate chatter at the open
+    // threshold. Sanitise to what the real algorithm was designed for.
+    if (!(open_db == open_db)) open_db = -40.0f;
+    if (!(close_db == close_db) || close_db > open_db) close_db = open_db;
+    if (!(attack_ms >= 0.0f)) attack_ms = 0.0f;
+    if (!(release_ms >= 0.0f)) release_ms = 0.0f;
+    if (!(hold_ms >= 0.0f)) hold_ms = 0.0f;
+    if (!(reduction_db == reduction_db)) reduction_db = 0.0f;
     gh->cfg[0] = open_db;
     gh->cfg[1] = close_db;
     gh->cfg[2] = attack_ms;
@@ -325,87 +301,70 @@ void lsp_gate_process(void *h, float *left, float *right, unsigned n, int enable
     GateChannel &c0 = gh->ch[0];
     GateChannel &c1 = gh->ch[1];
 
-    // real: c->sBypass.set_bypass(bypass) where bypass = pBypass->value()
-    // >= 0.5f, applied per-channel inside update_settings(). JamesDSP's
-    // `enabled` argument is that same bypass state, just passed per-call
-    // (see this function's contract in lsp_wrap.h) instead of per-settings
-    // -update.
     c0.sBypass.set_bypass(!enabled);
     c1.sBypass.set_bypass(!enabled);
 
     if (c0.sBypass.on() && c1.sBypass.on()) {
         gh->cur_reduction_db = 0.0f;
-        return; // fully settled disabled — zero cost, audio untouched
+        return; // fully settled disabled -- zero cost, audio untouched
     }
 
-    c0.ensure(n);
-    c1.ensure(n);
-    gh->ensureDry(n);
-    memcpy(gh->dryL, left, n * sizeof(float));
-    memcpy(gh->dryR, right, n * sizeof(float));
-
-    // real: dsp::mul_k3(vChannels[i].vIn, in_buf[i], fInGain, to_process).
-    // fInGain is fixed 1.0 (no JamesDSP input-gain UI), so this degenerates
-    // to a copy — kept as its own stage rather than folded away, since the
-    // whole pipeline below is built around per-channel vIn.
-    memcpy(c0.vIn, left, n * sizeof(float));
-    memcpy(c1.vIn, right, n * sizeof(float));
-
-    // real: per-channel loop —
-    //   in[0] = select_buffer(*c, vChannels[0].vIn, sc_buf[0], shm_buf[0]);
-    //   in[1] = select_buffer(*c, vChannels[1].vIn, sc_buf[1], shm_buf[1]);
-    //   c->sSC.process(c->vSc, in, to_process);
-    // With nScType always SCT_INTERNAL (no external-sidechain UI),
-    // select_buffer() always returns the `in` parameter — i.e. both
-    // channels' sSC are fed the identical stereo pair {vIn[0], vIn[1]}.
-    // Each channel still keeps its own Sidechain instance/state, exactly
-    // as the real per-channel loop does.
-    const float *sc_in[2] = { c0.vIn, c1.vIn };
-    c0.sSC.process(c0.vSc, sc_in, n);
-    c1.sSC.process(c1.vSc, sc_in, n);
-
-    // real: c->sGate.process(c->vGain, c->vEnv, c->vSc, to_process);
-    c0.sGate.process(c0.vGain, c0.vEnv, c0.vSc, n);
-    c1.sGate.process(c1.vGain, c1.vEnv, c1.vSc, n);
-
-    // real:
-    //   c->sLaDelay.process(c->vOut, c->vIn, c->vGain, to_process);
-    //   c->sInDelay.process(c->vIn, c->vIn, to_process);
-    //   c->sOutDelay.process(c->vOut, c->vOut, to_process);
-    // All three run with delay==0 here — see GateChannel comment.
-    c0.sLaDelay.process(c0.vOut, c0.vIn, c0.vGain, n);
-    c0.sInDelay.process(c0.vIn, c0.vIn, n);
-    c0.sOutDelay.process(c0.vOut, c0.vOut, n);
-    c1.sLaDelay.process(c1.vOut, c1.vIn, c1.vGain, n);
-    c1.sInDelay.process(c1.vIn, c1.vIn, n);
-    c1.sOutDelay.process(c1.vOut, c1.vOut, n);
-
-    // real: GM_STEREO/GM_LR (non-MS) branch —
-    //   if (c->bScListen) dsp::copy(c->vOut, c->vSc, to_process);
-    //   else dsp::mix2(c->vOut, c->vIn, c->fWetGain, c->fDryGain, to_process);
-    // bScListen has no JamesDSP UI (always false → always the mix2 path).
-    // With fWetGain=1/fDryGain=0 this mix2 is a no-op (vOut = vOut*1 +
-    // vIn*0), but it is still the real call, not skipped, in case dry/wet
-    // ever gets exposed.
-    lsp::dsp::mix2(c0.vOut, c0.vIn, c0.fWetGain, c0.fDryGain, n);
-    lsp::dsp::mix2(c1.vOut, c1.vIn, c1.fWetGain, c1.fDryGain, n);
-
-    // real:
-    //   c->sDryDelay.process(c->vIn, in_buf[i], to_process);
-    //   c->sBypass.process(out_buf[i], c->vIn, c->vOut, to_process);
-    c0.sDryDelay.process(c0.vIn, gh->dryL, n);
-    c1.sDryDelay.process(c1.vIn, gh->dryR, n);
-    c0.sBypass.process(left,  c0.vIn, c0.vOut, n);
-    c1.sBypass.process(right, c1.vIn, c1.vOut, n);
-
-    // JamesDSP metering (not a port of real fDotIn/fDotOut — those are
-    // UI mesh-dot/meter-port-only, out of scope per scope.md). Deepest
-    // VCA cut applied over the block, read directly from vGain, the same
-    // buffer c->sGate.process() wrote and c->sLaDelay applied to vOut.
+    // real: gate.cpp process() -- `while (samples > 0) { to_process = min(samples,
+    // GATE_BUF_SIZE); ... }` over fixed GATE_BUF_SIZE scratch. Same loop here;
+    // every stage below is the real per-channel pipeline in the real order.
     float min_gain = 1.0f;
-    for (unsigned i = 0; i < n; i++) {
-        if (c0.vGain[i] < min_gain) min_gain = c0.vGain[i];
-        if (c1.vGain[i] < min_gain) min_gain = c1.vGain[i];
+    unsigned base = 0;
+    unsigned remain = n;
+    while (remain > 0) {
+        const unsigned to_process = (remain > GATE_BUF_SIZE) ? GATE_BUF_SIZE : remain;
+        float *inL = left + base;
+        float *inR = right + base;
+
+        // Dry copy for the bypass/dry path (real: sDryDelay fed from in_buf).
+        memcpy(gh->dryL, inL, to_process * sizeof(float));
+        memcpy(gh->dryR, inR, to_process * sizeof(float));
+
+        // real: dsp::mul_k3(vChannels[i].vIn, in_buf[i], fInGain, to_process).
+        // fInGain is fixed 1.0 (no JamesDSP input-gain UI), so this is a copy.
+        memcpy(c0.vIn, inL, to_process * sizeof(float));
+        memcpy(c1.vIn, inR, to_process * sizeof(float));
+
+        // real: in[0..1] = select_buffer(...) -- SCT_INTERNAL always returns
+        // the channel inputs, so both sidechains see the stereo pair {vIn0, vIn1}.
+        const float *sc_in[2] = { c0.vIn, c1.vIn };
+        c0.sSC.process(c0.vSc, sc_in, to_process);
+        c1.sSC.process(c1.vSc, sc_in, to_process);
+
+        // real: c->sGate.process(c->vGain, c->vEnv, c->vSc, to_process);
+        c0.sGate.process(c0.vGain, c0.vEnv, c0.vSc, to_process);
+        c1.sGate.process(c1.vGain, c1.vEnv, c1.vSc, to_process);
+
+        // real: lookahead-compensated gain apply + in/out delay compensation.
+        c0.sLaDelay.process(c0.vOut, c0.vIn, c0.vGain, to_process);
+        c0.sInDelay.process(c0.vIn, c0.vIn, to_process);
+        c0.sOutDelay.process(c0.vOut, c0.vOut, to_process);
+        c1.sLaDelay.process(c1.vOut, c1.vIn, c1.vGain, to_process);
+        c1.sInDelay.process(c1.vIn, c1.vIn, to_process);
+        c1.sOutDelay.process(c1.vOut, c1.vOut, to_process);
+
+        // real: dsp::mix2(c->vOut, c->vIn, c->fWetGain, c->fDryGain, to_process)
+        lsp::dsp::mix2(c0.vOut, c0.vIn, c0.fWetGain, c0.fDryGain, to_process);
+        lsp::dsp::mix2(c1.vOut, c1.vIn, c1.fWetGain, c1.fDryGain, to_process);
+
+        // real: c->sDryDelay.process(c->vIn, in_buf, to_process);
+        //       c->sBypass.process(out_buf, c->vIn, c->vOut, to_process);
+        c0.sDryDelay.process(c0.vIn, gh->dryL, to_process);
+        c1.sDryDelay.process(c1.vIn, gh->dryR, to_process);
+        c0.sBypass.process(inL, c0.vIn, c0.vOut, to_process);
+        c1.sBypass.process(inR, c1.vIn, c1.vOut, to_process);
+
+        for (unsigned i = 0; i < to_process; i++) {
+            if (c0.vGain[i] < min_gain) min_gain = c0.vGain[i];
+            if (c1.vGain[i] < min_gain) min_gain = c1.vGain[i];
+        }
+
+        base   += to_process;
+        remain -= to_process;
     }
     gh->cur_reduction_db = (min_gain > 0.0f) ? -20.0f * log10f(min_gain) : 60.0f;
 }

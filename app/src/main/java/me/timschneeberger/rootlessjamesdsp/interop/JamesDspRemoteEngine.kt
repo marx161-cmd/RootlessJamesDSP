@@ -122,10 +122,12 @@ class JamesDspRemoteEngine(
         super.close()
     }
 
-    override fun setOutputControl(threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
+    // Cmd 1500, 6 floats (vsize 24): the 6th is the output limiter on/off added
+    // 2026-10-21; engines that only know the 5-float shape ignore it (limiter on).
+    override fun setOutputControl(enable: Boolean, threshold: Float, attack: Float, release: Float, knee: Float, postGain: Float): Boolean {
         return effect.setParameterFloatArray(
             1500,
-            floatArrayOf(threshold, attack, release, knee, postGain)
+            floatArrayOf(threshold, attack, release, knee, postGain, if (enable) 1f else 0f)
         ) == AudioEffect.SUCCESS
     }
 

@@ -145,6 +145,7 @@
     <string name="key_limiter_attack" translatable="false">limiter_attack</string>
     <string name="key_limiter_release" translatable="false">limiter_release</string>
     <string name="key_limiter_knee" translatable="false">limiter_knee</string>
+    <string name="key_limiter_enable" translatable="false">limiter_enable</string>
     <string name="key_output_postgain" translatable="false">output_postgain</string>
 
     <string name="key_gate_enable" translatable="false">gate_enable</string>
