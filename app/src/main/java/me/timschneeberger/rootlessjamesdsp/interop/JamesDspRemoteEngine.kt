@@ -151,12 +151,30 @@ class JamesDspRemoteEngine(
         )) == AudioEffect.SUCCESS
     }
 
-    // Sends AIDL cmd 1207 (native: jamesdsp.c) — toggles the legacy
-    // RMS-integrator AutoGain module (chain_modules.c). Not the real
-    // libebur128-based AutoGain the project's design goals call for; that
-    // port hasn't started. This switches on the existing legacy algorithm.
-    override fun setAutoGainInternal(enable: Boolean): Boolean {
-        return effect.setParameter(1207, enable.toShort()) == AudioEffect.SUCCESS
+    // Sends AIDL cmd 10103 (native: jamesdsp.c, vsize 36 block, "Expander:
+    // band, enabled, mode, threshold, ratio, knee, attack, release, hold" --
+    // routes to the real LSP expander via lsp_exp_configure()). Band index at
+    // index 0 unused (single instance), sent as 0. Knee is LINEAR like the
+    // compressor's.
+    override fun setExpanderInternal(
+        enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float,
+        attack: Float, release: Float, hold: Float
+    ): Boolean {
+        return effect.setParameterFloatArray(10103, floatArrayOf(
+            0f, if (enable) 1f else 0f, mode.toFloat(),
+            threshold, ratio, knee, attack, release, hold
+        )) == AudioEffect.SUCCESS
+    }
+
+    // Sends AIDL cmd 10104 (native: jamesdsp.c, vsize 36 block, "Autogain:
+    // band, enabled, level LUFS, long period ms, short period ms, drift dB,
+    // silence LUFS, max gain dB, max gain on" -- the real LSP Autogain port,
+    // lsp_autogain_configure()). The legacy cmd 1207 enable still works in
+    // the engine but is no longer sent.
+    override fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean {
+        return effect.setParameterFloatArray(10104, floatArrayOf(
+            0f, if (enable) 1f else 0f, level, longPeriod, shortPeriod, drift, silence, maxGain, if (maxGainOn) 1f else 0f
+        )) == AudioEffect.SUCCESS
     }
 
     // Sends AIDL cmd 10101 (native: jamesdsp.c, "Compressor: enabled,

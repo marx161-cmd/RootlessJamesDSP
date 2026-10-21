@@ -44,3 +44,9 @@
 [submodule "app/src/main/cpp/lsp-lltl-lib"]
 	path = app/src/main/cpp/lsp-lltl-lib
 	url = https://github.com/lsp-plugins/lsp-lltl-lib.git
+[submodule "app/src/main/cpp/lsp-expander"]
+	path = app/src/main/cpp/lsp-expander
+	url = https://github.com/lsp-plugins/lsp-plugins-expander.git
+[submodule "app/src/main/cpp/lsp-autogain"]
+	path = app/src/main/cpp/lsp-autogain
+	url = https://github.com/lsp-plugins/lsp-plugins-autogain.git

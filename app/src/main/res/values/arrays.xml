@@ -403,4 +403,12 @@
         <item>spl0</item>
         <item>spl1</item>
     </string-array>
+    <string-array name="expander_mode_entries">
+        <item>@string/expander_mode_down</item>
+        <item>@string/expander_mode_up</item>
+    </string-array>
+    <string-array name="expander_mode_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
 </resources>

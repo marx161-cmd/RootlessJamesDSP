@@ -142,7 +142,8 @@ static int jdsp_get_postgain(lua_State *L) {
 
 static const char *g_module_names[] = {
     "gate", "compressor", "autogain", "reverb", "stereo", "tube",
-    "convolver", "eq", "crossfeed", "ddc", "arbeq", "liveprog", "lua"
+    "convolver", "eq", "crossfeed", "ddc", "arbeq", "liveprog", "lua",
+    "expander" // appended (index 13) -- jdspController.c moduleStates[] must match
 };
 #define JDSP_MODULE_COUNT ((int)(sizeof(g_module_names)/sizeof(g_module_names[0])))
 static int g_module_states[JDSP_MODULE_COUNT] = {0};
@@ -548,6 +549,10 @@ static int toggle_module_dispatch(const char *name, int enable) {
     if (strcmp(name, "compressor") == 0) {
         float p = (float)enable;
         return g_cmd_handler(10101, &p, 1);
+    }
+    if (strcmp(name, "expander") == 0) {
+        float p = (float)enable;
+        return g_cmd_handler(10103, &p, 1);
     }
 
     return -1; // unknown module

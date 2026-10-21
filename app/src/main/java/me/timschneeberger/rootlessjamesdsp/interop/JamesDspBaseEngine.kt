@@ -76,8 +76,25 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val gateHold = cache.get(R.string.key_gate_hold, 10f)
             val gateReduction = cache.get(R.string.key_gate_reduction, -60f)
 
+            cache.select(Constants.PREF_EXPANDER)
+            val expEnabled = cache.get(R.string.key_expander_enable, false)
+            val expMode = cache.get(R.string.key_expander_mode, "1").toInt()   // real EM_DEFAULT = upward
+            val expThreshold = cache.get(R.string.key_expander_threshold, -12f)
+            val expRatio = cache.get(R.string.key_expander_ratio, 4f)
+            val expKnee = cache.get(R.string.key_expander_knee, 0.5f)
+            val expAttack = cache.get(R.string.key_expander_attack, 20f)
+            val expRelease = cache.get(R.string.key_expander_release, 100f)
+            val expHold = cache.get(R.string.key_expander_hold, 0f)
+
             cache.select(Constants.PREF_AUTOGAIN)
             val autoGainEnabled = cache.get(R.string.key_autogain_enable, false)
+            val autoGainLevel = cache.get(R.string.key_autogain_level, -23f)
+            val autoGainLongPeriod = cache.get(R.string.key_autogain_long_period, 400f)
+            val autoGainShortPeriod = cache.get(R.string.key_autogain_short_period, 20f)
+            val autoGainDrift = cache.get(R.string.key_autogain_drift, 12f)
+            val autoGainSilence = cache.get(R.string.key_autogain_silence, -72f)
+            val autoGainMaxOn = cache.get(R.string.key_autogain_max_gain_on, false)
+            val autoGainMaxGain = cache.get(R.string.key_autogain_max_gain, 36f)
 
             cache.select(Constants.PREF_COMPANDER)
             val compEnabled = cache.get(R.string.key_compander_enable, false)
@@ -145,7 +162,8 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                 val result = when (it) {
                     Constants.PREF_OUTPUT -> setOutputControl(limiterEnabled, limiterThreshold, limiterAttack, limiterRelease, limiterKnee, outputPostGain)
                     Constants.PREF_GATE -> setGate(gateEnabled, gateOpenThreshold, gateCloseThreshold, gateAttack, gateRelease, gateHold, gateReduction)
-                    Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled)
+                    Constants.PREF_EXPANDER -> setExpander(expEnabled, expMode, expThreshold, expRatio, expKnee, expAttack, expRelease, expHold)
+                    Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled, autoGainLevel, autoGainLongPeriod, autoGainShortPeriod, autoGainDrift, autoGainSilence, autoGainMaxGain, autoGainMaxOn)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
                     Constants.PREF_EQ -> setMultiEqualizer(eqEnabled, eqFilterType, eqInterpolationMode, eqBands)
@@ -198,9 +216,14 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
         return setGateInternal(enable, openThreshold, closeThreshold, attack, release, hold, reduction)
     }
 
-    fun setAutoGain(enable: Boolean): Boolean
+    fun setExpander(enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     {
-        return setAutoGainInternal(enable)
+        return setExpanderInternal(enable, mode, threshold, ratio, knee, attack, release, hold)
+    }
+
+    fun setAutoGain(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
+    {
+        return setAutoGainInternal(enable, level, longPeriod, shortPeriod, drift, silence, maxGain, maxGainOn)
     }
 
     fun setVdc(enable: Boolean, vdcPath: String): Boolean
@@ -430,7 +453,8 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     // bands params, which the native side no longer does anything with.
     protected abstract fun setCompanderInternal(enable: Boolean, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     protected abstract fun setGateInternal(enable: Boolean, openThreshold: Float, closeThreshold: Float, attack: Float, release: Float, hold: Float, reduction: Float): Boolean
-    protected abstract fun setAutoGainInternal(enable: Boolean): Boolean
+    protected abstract fun setExpanderInternal(enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
+    protected abstract fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean

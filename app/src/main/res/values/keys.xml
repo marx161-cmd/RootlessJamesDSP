@@ -155,6 +155,21 @@
     <string name="key_gate_release" translatable="false">gate_release</string>
     <string name="key_gate_hold" translatable="false">gate_hold</string>
     <string name="key_gate_reduction" translatable="false">gate_reduction</string>
+    <string name="key_expander_enable" translatable="false">expander_enable</string>
+    <string name="key_expander_mode" translatable="false">expander_mode</string>
+    <string name="key_expander_threshold" translatable="false">expander_threshold</string>
+    <string name="key_expander_ratio" translatable="false">expander_ratio</string>
+    <string name="key_expander_knee" translatable="false">expander_knee</string>
+    <string name="key_expander_attack" translatable="false">expander_attack</string>
+    <string name="key_expander_release" translatable="false">expander_release</string>
+    <string name="key_expander_hold" translatable="false">expander_hold</string>
 
     <string name="key_autogain_enable" translatable="false">autogain_enable</string>
+    <string name="key_autogain_level" translatable="false">autogain_level</string>
+    <string name="key_autogain_long_period" translatable="false">autogain_long_period</string>
+    <string name="key_autogain_short_period" translatable="false">autogain_short_period</string>
+    <string name="key_autogain_drift" translatable="false">autogain_drift</string>
+    <string name="key_autogain_silence" translatable="false">autogain_silence</string>
+    <string name="key_autogain_max_gain_on" translatable="false">autogain_max_gain_on</string>
+    <string name="key_autogain_max_gain" translatable="false">autogain_max_gain</string>
 </resources>

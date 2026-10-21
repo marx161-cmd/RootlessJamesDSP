@@ -56,6 +56,10 @@ file(GLOB LSP_DSP_SOURCES
     lsp-dsp-lib/src/main/generic/generic.cpp
     lsp-dsp-units/src/main/misc/interpolation.cpp
     lsp-dsp-units/src/main/dynamics/Compressor.cpp
+    lsp-dsp-units/src/main/dynamics/Expander.cpp
+    lsp-dsp-units/src/main/dynamics/AutoGain.cpp
+    lsp-dsp-units/src/main/meters/LoudnessMeter.cpp
+    lsp-dsp-units/src/main/misc/broadcast.cpp
     lsp-dsp-units/src/main/dynamics/Gate.cpp
     lsp-dsp-units/src/main/dynamics/Limiter.cpp
     lsp-dsp-units/src/main/dynamics/DynamicProcessor.cpp
@@ -151,6 +155,8 @@ add_library(jamesdsp SHARED
     EELStdOutExtension.c EELStdOutExtension.h
     lsp_wrap.cpp
     lsp_wrap_compressor.cpp
+    lsp_wrap_expander.cpp
+    lsp_wrap_autogain.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
@@ -188,6 +194,8 @@ add_library(jamesdsp_static STATIC
     EELStdOutExtension.c EELStdOutExtension.h
     lsp_wrap.cpp
     lsp_wrap_compressor.cpp
+    lsp_wrap_expander.cpp
+    lsp_wrap_autogain.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c

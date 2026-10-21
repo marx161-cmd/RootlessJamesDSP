@@ -59,6 +59,7 @@
 // chain, and the final Bypass dry/wet crossfade — is carried over in the
 // real plugin's own order of operations.
 #include "lsp_wrap_compressor.h"
+#include "rt_config.h"
 
 #include <lsp-plug.in/dsp-units/const.h>
 #include <lsp-plug.in/dsp-units/units.h>
@@ -180,6 +181,8 @@ struct CompHandle {
     // stomping the others. Order: threshold_db, ratio, knee_db, attack_ms,
     // release_ms, hold_ms — matches lsp_comp_configure()'s argument order.
     float cfg[6];
+    struct Cfg { float threshold, ratio, knee, attack_ms, release_ms, hold_ms; };
+    RtConfig<Cfg> rt;   // control->audio handoff, see rt_config.h
     // Deepest VCA gain reduction applied over the last processed block, in
     // dB. This is JamesDSP-side telemetry replacing the real plugin's
     // pMeter[M_GAIN]/sGraph[G_GAIN] UI ports (stripped per the hard rule —
@@ -251,10 +254,10 @@ void lsp_comp_destroy(void *h) {
 // restricted to CM_STEREO / internal sidechain. See file banner for the
 // exact mapping of each real port read to either a JamesDSP configure()
 // argument or the real plugin's own documented port default.
-void lsp_comp_configure(void *h, float threshold, float ratio, float knee,
-                         float attack_ms, float release_ms, float hold_ms) {
-    if (!h) return;
-    auto *hd = (CompHandle *)h;
+// Audio-thread half of configure(): the real plugin's update_settings(),
+// transliterated. Runs from lsp_comp_process() when a new config was published.
+static void comp_apply(CompHandle *hd, float threshold, float ratio, float knee,
+                       float attack_ms, float release_ms, float hold_ms) {
 
     // Hardening (review 2026-10-21): the real plugin's host clamps every port
     // to its metadata range; JamesDSP's AIDL/Lua surface does not, and the
@@ -419,9 +422,23 @@ void lsp_comp_configure(void *h, float threshold, float ratio, float knee,
     // latency == 0 in this scope anyway.
 }
 
+void lsp_comp_configure(void *h, float threshold, float ratio, float knee,
+                         float attack_ms, float release_ms, float hold_ms) {
+    if (!h) return;
+    auto *hd = (CompHandle *)h;
+    CompHandle::Cfg c = { threshold, ratio, knee, attack_ms, release_ms, hold_ms };
+    hd->rt.publish(c);   // applied by comp_apply() on the audio thread's next block
+}
+
+
 void lsp_comp_process(void *h, float *left, float *right, unsigned n, int enabled) {
     if (!h || n == 0) return;
     auto *hd = (CompHandle *)h;
+    {
+        CompHandle::Cfg c;
+        if (hd->rt.take(c))
+            comp_apply(hd, c.threshold, c.ratio, c.knee, c.attack_ms, c.release_ms, c.hold_ms);
+    }
     ChannelState &c0 = hd->ch[0];
     ChannelState &c1 = hd->ch[1];
 
@@ -546,10 +563,11 @@ void lsp_comp_get_config(void *h, float *threshold_db, float *ratio,
         return;
     }
     auto *hd = (CompHandle *)h;
-    if (threshold_db) *threshold_db = hd->cfg[0];
-    if (ratio) *ratio = hd->cfg[1];
-    if (knee_db) *knee_db = hd->cfg[2];
-    if (attack_ms) *attack_ms = hd->cfg[3];
-    if (release_ms) *release_ms = hd->cfg[4];
-    if (hold_ms) *hold_ms = hd->cfg[5];
+    const CompHandle::Cfg c = hd->rt.peek();   // last published, not last applied
+    if (threshold_db) *threshold_db = c.threshold;
+    if (ratio) *ratio = c.ratio;
+    if (knee_db) *knee_db = c.knee;
+    if (attack_ms) *attack_ms = c.attack_ms;
+    if (release_ms) *release_ms = c.release_ms;
+    if (hold_ms) *hold_ms = c.hold_ms;
 }

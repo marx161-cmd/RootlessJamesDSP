@@ -12,6 +12,7 @@ object Constants {
     const val PREF_BASS = "dsp_bass"
     const val PREF_COMPANDER = "dsp_compander"
     const val PREF_GATE = "dsp_gate"
+    const val PREF_EXPANDER = "dsp_expander"
     const val PREF_CONVOLVER = "dsp_convolver"
     const val PREF_CROSSFEED = "dsp_crossfeed"
     const val PREF_DDC = "dsp_ddc"

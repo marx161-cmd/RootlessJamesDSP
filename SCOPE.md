@@ -119,3 +119,24 @@ lookahead vanishes in one step = one tick at the toggle (user: "expected, fine t
 App: SwitchPreferenceGroup on the output-control card (key limiter_enable, default true),
 BaseEngine/Remote/Local setOutputControl gained the enable arg, JNI setLimiterEnabled for
 the rootless path.
+
+## 2026-10-21 (night) — scope widened (user: publish shifts 1-2 weeks, front-load now)
+
+Agreed plan: (1) profile the real preset on-device (when the user is home), (2) lock-free
+config handoff for the dynamics ports, (3) Expander port, (4) AutoGain port; loudness
+compensation only if the profile shows headroom; multiband compressor last/if ever.
+
+(2) DONE: rt_config.h -- configure() on the control thread only sanitises and publishes;
+the audio thread try-takes and runs the real update_settings() itself (the real LSP host
+structure). All jdsp_lock use on the gate/compressor/limiter path removed (chain wrappers,
+JamesDSPProcess limiter call, every configure call site). Verified: difftest unchanged,
+harness --stress (random reconfigures from a second thread during processing) clean.
+(3) IN PROGRESS via subagent: lsp_wrap_expander.{h,cpp} transliterated from
+lsp-expander (submodule pinned 1.0.37, 2026-06-13, same date as the gate pin); AIDL cmd
+10103, 9 floats vsize 36 [band, enabled, mode(0 down/1 up), threshold dB, ratio, knee
+linear, attack, release, hold]; chain slot right after "gate". App card
+dsp_expander_preferences.xml + PREF_EXPANDER done by me.
+(4) NEXT: lsp-autogain submodule added, pinned 1.0.19 (2026-06-13, matches the dsp-units
+pin); port after the expander; LADSPA autogain_stereo is available on comrade for the
+difftest.
+Also: compander knee slider minimum raised to 0.063 (the engine clamps anyway).

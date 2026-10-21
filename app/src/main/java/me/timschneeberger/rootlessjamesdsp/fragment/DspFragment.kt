@@ -81,6 +81,10 @@ class DspFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListen
                     R.xml.dsp_gate_preferences
                 ))
             .replace(
+                R.id.card_expander, PreferenceGroupFragment.newInstance(Constants.PREF_EXPANDER,
+                    R.xml.dsp_expander_preferences
+                ))
+            .replace(
                 R.id.card_compressor, PreferenceGroupFragment.newInstance(Constants.PREF_COMPANDER,
                     R.xml.dsp_compander_preferences
                 ))

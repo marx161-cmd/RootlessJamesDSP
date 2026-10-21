@@ -33,7 +33,7 @@
             android:key="@string/key_compander_knee"
             android:title="@string/compander_knee"
             android:defaultValue="1.0"
-            app:minValue="0.0"
+            app:minValue="0.063"
             app:maxValue="1.0"
             app:allowDividerAbove="false"
             app:updatesContinuously="true"

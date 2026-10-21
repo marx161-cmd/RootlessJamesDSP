@@ -161,7 +161,14 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         throw UnsupportedOperationException()
     }
 
-    override fun setAutoGainInternal(enable: Boolean): Boolean {
+    override fun setExpanderInternal(
+        enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float,
+        attack: Float, release: Float, hold: Float
+    ): Boolean {
+        throw UnsupportedOperationException()
+    }
+
+    override fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean {
         throw UnsupportedOperationException()
     }
 

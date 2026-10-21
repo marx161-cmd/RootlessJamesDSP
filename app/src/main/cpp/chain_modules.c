@@ -89,43 +89,9 @@ void gate_process(Gate *g, float *L, float *R, unsigned n) {
 }
 
 // ============================================================
-// AutoGain — slow RMS integration → level-correction gain
+// AutoGain — the legacy slow-RMS-integrator module that lived here was
+// replaced 2026-10-21 by the faithful LSP Autogain port
+// (lsp_wrap_autogain.cpp, BS.1770 K-weighted loudness -> dspu::AutoGain).
+// jdspController.c's w_autogain() and the autogain.current_gain_db Lua
+// telemetry now call lsp_autogain_process()/lsp_autogain_get_gain_db().
 // ============================================================
-
-typedef struct {
-    float target_rms, gain, rate;
-    int enabled;
-} AutoGain;
-
-static AutoGain g_ag = {0.12f, 1.0f, 0.0002f, 1};
-
-void autogain_process(float *L, float *R, unsigned n) {
-    if (!g_ag.enabled) return;
-    float sum = 0.0f;
-    for (unsigned i = 0; i < n; i++) {
-        float mono = (L[i] + R[i]) * 0.5f;
-        sum += mono * mono;
-    }
-    float rms = sqrtf(sum / (float)n);
-    // Below this, treat the block as silence and freeze the gain instead of
-    // adapting. Without this, err = target_rms / (rms + 1e-7f) blows up as
-    // rms -> 0 (e.g. during a pause), and the integrator below has no upper
-    // bound, so gain climbs unboundedly for as long as it stays quiet. The
-    // next real audio (resuming playback) then gets multiplied by whatever
-    // runaway value it reached — heard as a loud crack on toggling play.
-    const float kSilenceFloor = 1e-4f; // ~ -80 dBFS
-    if (rms > kSilenceFloor) {
-        float err = g_ag.target_rms / rms;
-        float tg = g_ag.gain * (1.0f + (err - 1.0f) * 0.01f);
-        // Clamp to a sane AGC range (roughly -20 dB .. +20 dB) so a runaway
-        // target can't happen even if some other assumption here is wrong.
-        if (tg < 0.1f) tg = 0.1f;
-        if (tg > 10.0f) tg = 10.0f;
-        g_ag.gain += (tg - g_ag.gain) * g_ag.rate;
-    }
-    for (unsigned i = 0; i < n; i++) { L[i] *= g_ag.gain; R[i] *= g_ag.gain; }
-}
-
-float autogain_get_gain_db(void) {
-    return g_ag.gain > 0.0f ? 20.0f * log10f(g_ag.gain) : -120.0f;
-}

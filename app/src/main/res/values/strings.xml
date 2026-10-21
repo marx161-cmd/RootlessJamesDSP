@@ -220,8 +220,25 @@
     <string name="gate_release">Release</string>
     <string name="gate_hold">Hold</string>
     <string name="gate_reduction">Reduction</string>
+    <string name="expander_enable">Expander</string>
+    <string name="expander_mode">Mode</string>
+    <string name="expander_mode_down">Downward (quieter below threshold)</string>
+    <string name="expander_mode_up">Upward (louder above threshold)</string>
+    <string name="expander_threshold">Threshold</string>
+    <string name="expander_ratio">Ratio</string>
+    <string name="expander_knee">Knee</string>
+    <string name="expander_attack">Attack</string>
+    <string name="expander_release">Release</string>
+    <string name="expander_hold">Hold</string>
 
-    <string name="autogain_enable">AutoGain (legacy)</string>
+    <string name="autogain_enable">AutoGain</string>
+    <string name="autogain_level">Target loudness</string>
+    <string name="autogain_long_period">Long measuring period</string>
+    <string name="autogain_short_period">Short measuring period</string>
+    <string name="autogain_drift">Allowed level drift</string>
+    <string name="autogain_silence">Silence level</string>
+    <string name="autogain_max_gain_on">Limit maximum gain</string>
+    <string name="autogain_max_gain">Maximum gain</string>
 
     <string name="stereowide_enable">Soundstage wideness</string>
     <string name="stereowide_level">Wideness</string>

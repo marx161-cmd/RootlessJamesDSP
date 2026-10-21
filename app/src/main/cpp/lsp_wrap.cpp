@@ -16,6 +16,7 @@
 // independent per-channel nor properly linked) and the init() lookahead
 // buffer it needs (previously never called).
 #include "lsp_wrap.h"
+#include "rt_config.h"
 #include <lsp-plug.in/dsp-units/dynamics/Compressor.h>
 #include <lsp-plug.in/dsp-units/dynamics/Gate.h>
 #include <lsp-plug.in/dsp-units/dynamics/Limiter.h>
@@ -158,7 +159,12 @@ struct GateHandle {
 
     // Last-configured parameters in caller units (see CompHandle::cfg).
     // Order: open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db.
+    // Last-applied parameters in caller units (written on the audio thread by
+    // gate_apply()). Order: open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db.
     float cfg[6];
+    // Control->audio handoff, see rt_config.h.
+    struct Cfg { float open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db; };
+    RtConfig<Cfg> rt;
     // Deepest attenuation applied over the last processed block, in dB.
     float cur_reduction_db = 0.0f;
 
@@ -234,10 +240,10 @@ void lsp_gate_destroy(void *h) {
     delete gh;
 }
 
-void lsp_gate_configure(void *h, float open_db, float close_db,
-                         float attack_ms, float release_ms, float hold_ms, float reduction_db) {
-    if (!h) return;
-    auto *gh = (GateHandle *)h;
+// Audio-thread half of configure(): the real plugin's update_settings(),
+// transliterated. Runs from lsp_gate_process() when a new config was published.
+static void gate_apply(GateHandle *gh, float open_db, float close_db,
+                       float attack_ms, float release_ms, float hold_ms, float reduction_db) {
     // Hardening (review 2026-10-21): the AIDL/Lua surface is not range-limited
     // like the real plugin's host ports. NaN in -> NaN gain out, and a close
     // threshold above the open one (two free sliders here; the real plugin
@@ -295,9 +301,23 @@ void lsp_gate_configure(void *h, float open_db, float close_db,
     }
 }
 
+void lsp_gate_configure(void *h, float open_db, float close_db,
+                         float attack_ms, float release_ms, float hold_ms, float reduction_db) {
+    if (!h) return;
+    auto *gh = (GateHandle *)h;
+    GateHandle::Cfg c = { open_db, close_db, attack_ms, release_ms, hold_ms, reduction_db };
+    gh->rt.publish(c);   // applied by gate_apply() on the audio thread's next block
+}
+
+
 void lsp_gate_process(void *h, float *left, float *right, unsigned n, int enabled) {
     if (!h || n == 0) return;
     auto *gh = (GateHandle *)h;
+    {
+        GateHandle::Cfg c;
+        if (gh->rt.take(c))
+            gate_apply(gh, c.open_db, c.close_db, c.attack_ms, c.release_ms, c.hold_ms, c.reduction_db);
+    }
     GateChannel &c0 = gh->ch[0];
     GateChannel &c1 = gh->ch[1];
 
@@ -394,11 +414,12 @@ void lsp_gate_get_config(void *h, float *open_db, float *close_db,
         return;
     }
     auto *gh = (GateHandle *)h;
-    if (open_db) *open_db = gh->cfg[0];
-    if (close_db) *close_db = gh->cfg[1];
-    if (attack_ms) *attack_ms = gh->cfg[2];
-    if (release_ms) *release_ms = gh->cfg[3];
-    if (hold_ms) *hold_ms = gh->cfg[4];
-    if (reduction_db) *reduction_db = gh->cfg[5];
+    const GateHandle::Cfg c = gh->rt.peek();   // last published, not last applied
+    if (open_db) *open_db = c.open_db;
+    if (close_db) *close_db = c.close_db;
+    if (attack_ms) *attack_ms = c.attack_ms;
+    if (release_ms) *release_ms = c.release_ms;
+    if (hold_ms) *hold_ms = c.hold_ms;
+    if (reduction_db) *reduction_db = c.reduction_db;
 }
 

@@ -80,6 +80,7 @@
 // fail on duplicate symbols.
 
 #include "lsp_wrap_limiter.h"
+#include "rt_config.h"
 
 #include <lsp-plug.in/dsp-units/util/Oversampler.h>
 #include <lsp-plug.in/dsp-units/dynamics/Limiter.h>
@@ -323,6 +324,8 @@ struct LimiterPortHandle {
     float cfg_attack_ms    = 0.0f;
     float cfg_release_ms   = 0.0f;
     float cfg_knee_db      = 0.0f;
+    struct Cfg { float threshold_db, attack_ms, release_ms, knee; };
+    RtConfig<Cfg> rt;   // control->audio handoff, see rt_config.h
 
     // Deepest VCA gain reduction applied over the last processed block, dB.
     float cur_reduction_db = 0.0f;
@@ -484,10 +487,10 @@ void lsp_limiter_destroy(void *handle) {
 //   lk_ahead (lookahead ms) -> LIMITER_LOOKAHEAD_DFL (5.0f, == real LOOKAHEAD_DFL)
 //   op_mode (Hermite/Exp/Line x Thin/Wide/Tail/Duck) -> LM_HERM_THIN
 //     (== real LOM_DEFAULT), set once in create(), not per-configure.
-void lsp_limiter_configure(void *handle, float threshold_db, float attack_ms,
-                            float release_ms, float knee_db) {
-    if (!handle) return;
-    auto *h = (LimiterPortHandle *) handle;
+// Audio-thread half of configure(): the real plugin's update_settings(),
+// transliterated. Runs from lsp_limiter_process() when a new config was published.
+static void limiter_apply(LimiterPortHandle *h, float threshold_db, float attack_ms,
+                          float release_ms, float knee_db) {
 
     h->cfg_threshold_db = threshold_db;
     h->cfg_attack_ms    = attack_ms;
@@ -574,6 +577,15 @@ void lsp_limiter_configure(void *handle, float threshold_db, float attack_ms,
     sync_latency(h);
 }
 
+void lsp_limiter_configure(void *handle, float threshold_db, float attack_ms,
+                            float release_ms, float knee_db) {
+    if (!handle) return;
+    auto *h = (LimiterPortHandle *) handle;
+    LimiterPortHandle::Cfg c = { threshold_db, attack_ms, release_ms, knee_db };
+    h->rt.publish(c);   // applied by limiter_apply() on the audio thread's next block
+}
+
+
 // Real limiter::process() (limiter.cpp:779-1016), ported. Graph/mesh
 // history output (:937-1015) and query_display_draw() are dropped (UI).
 // premix_channel() calls (:807-808) are dropped along with sPremix (out of
@@ -584,6 +596,11 @@ void lsp_limiter_configure(void *handle, float threshold_db, float attack_ms,
 void lsp_limiter_process(void *handle, float *left, float *right, unsigned n) {
     if (!handle || n == 0) return;
     auto *h = (LimiterPortHandle *) handle;
+    {
+        LimiterPortHandle::Cfg c;
+        if (h->rt.take(c))
+            limiter_apply(h, c.threshold_db, c.attack_ms, c.release_ms, c.knee);
+    }
 
     channel_t *chans[2] = { &h->ch[0], &h->ch[1] };
 
@@ -690,8 +707,9 @@ void lsp_limiter_get_config(void *handle, float *threshold_db, float *attack_ms,
         return;
     }
     auto *h = (LimiterPortHandle *) handle;
-    if (threshold_db) *threshold_db = h->cfg_threshold_db;
-    if (attack_ms)    *attack_ms    = h->cfg_attack_ms;
-    if (release_ms)   *release_ms   = h->cfg_release_ms;
-    if (knee_db)       *knee_db     = h->cfg_knee_db;
+    const LimiterPortHandle::Cfg c = h->rt.peek();   // last published, not last applied
+    if (threshold_db) *threshold_db = c.threshold_db;
+    if (attack_ms)    *attack_ms    = c.attack_ms;
+    if (release_ms)   *release_ms   = c.release_ms;
+    if (knee_db)       *knee_db     = c.knee;
 }
