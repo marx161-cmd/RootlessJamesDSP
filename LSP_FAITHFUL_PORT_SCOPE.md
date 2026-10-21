@@ -128,3 +128,48 @@ wrapper's guess at that orchestration. `lsp-gate`/`lsp-compressor`/
 `.cpp` (not the whole plugin file — the extracted/transliterated core) into
 the build is part of this task, matching the general shape (not the literal
 wrapper instruction) of the old `AGENT_INSTRUCTIONS.md` step 2.
+
+## 2026-09-04 (same night) — DONE, mechanically verified live, closing this file
+
+All three modules landed as real faithful ports and are confirmed running on
+the actual device, not just built:
+
+- Gate rewritten in place in `lsp_wrap.cpp` (now Gate-only, 445 lines after
+  removing the old Compressor/Limiter sections). Compressor and Limiter
+  landed in their own new files (`lsp_wrap_compressor.{h,cpp}`,
+  `lsp_wrap_limiter.{h,cpp}`) per the file-isolation note above.
+- Limiter's real `sOver`/`sScOver` oversampler is fully wired (not stubbed) —
+  true-peak limiting, as scoped. Two unit-mixing quirks the Limiter subagent
+  found in the real plugin's `init()` were ported verbatim per the hard rule,
+  not "fixed" — flagged for awareness, not treated as bugs to silently patch.
+- Build fixes needed to get this to actually compile: `lsp-lltl-lib`
+  submodule init, `LSP_LLTL_LIB_BUILTIN` define (the header ignores a forced
+  empty `LSP_LLTL_LIB_PUBLIC`, it only responds to the *_BUILTIN flag),
+  `lsp_runtime_system_shim.cpp` (minimal `lsp::system::get_time()` via
+  `clock_gettime` — the real `lsp-runtime/system.cpp` needs
+  `posix_spawn`/`secure_getenv`/`getlogin_r`, none of which exist on Bionic).
+- Shipped in tonight's OTA (`crDroidAndroid-16.0-20260904-blazer-v12.11.zip`,
+  commit `d19dea3`, JDSP APK hash `f565c882...`). **Verified on-device, not
+  from a note**: pulled `/vendor/lib64/soundfx/libjamesdspaidl.so` live over
+  SSH — SHA256 byte-identical to the local build output
+  (`a5a4895f6e93cd92328fac3a559479218d7a8f6474d327660594fee443e5158d`), and
+  the dynamic symbol table exports `lsp_gate_process`/`lsp_comp_process`/
+  `lsp_limiter_process` (the real port entry points, not the old handwrap).
+  `dumpsys media.audio_flinger` showed Effect ID 91 (UUID
+  `f27317f4-c984-4de6-9a90-545759495bf2`, "JamesDSP v4.01") live and enabled
+  on an active session with Gate/Compander/Limiter all on
+  (`gate_enable=true` etc. in the app's shared_prefs).
+- CPU usage after the real port came in at ~22% of one core for the HAL
+  process under active audio — user's own read: "half what it used before"
+  the port. Plausible explanation: the real plugins reuse the same
+  vectorized `lsp::dsp::` primitives correctly structured, instead of the
+  old wrapper's ad-hoc per-sample handling — not just more correct, cheaper.
+- **Not done, not attempted tonight, still real remaining scope**:
+  MB-Compressor (genuinely unstarted feature, not a hand-wrap fix — see
+  above) and turning the `lsp-gate`/`lsp-compressor`/`lsp-limiter`/
+  `lsp-mb-compressor` reference clones into real git submodules (currently
+  plain untracked directories).
+
+This closes the five-times-broken loop. If a future session finds JDSP's
+Gate/Compressor/Limiter hand-wrapped again, something regressed — it did
+not stay broken from lack of trying this time.
