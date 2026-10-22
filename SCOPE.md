@@ -167,3 +167,58 @@ Found on the way (not scope changes, recorded so nobody re-derives them):
 Phone state: `release/full` (2fdbc008) bind-mounted for the ALR listening check; reboot
 returns to the OTA .so (e041d142). Still open: the ALR listen (user), README-level
 publish decisions (which repos go public), then the module list for the 1-2 week window.
+
+## 2026-10-22 (night, later) — ALR listen passed; loudness compensation port started
+
+User listened with release/full (ALR on) + the new app: limiter loads and sounds fine; the
+one tick when toggling the output limiter on/off is audible, as documented (lookahead
+drops in one step). No change requested.
+
+Decision (user: "keep crunching", credit available today/tomorrow): module order
+1) LSP loud_comp (loudness compensation) -- pre-agreed "if the profile shows headroom";
+   full build sits at 27.7 % of one core, so it does;
+2) multiband compressor as a faithful port (replacing the hand-wrap) -- last, as before;
+3) meter decimation in the full build (~2.5 % of the HAL) -- small, quick.
+
+loud_comp port spec: submodule app/src/main/cpp/lsp-loud-comp pinned 1.0.33 (2026-06-13,
+same release set as the other pins; plugin logic identical to the 1.0.31 the comrade
+reference build 1.2.29 ships). AIDL cmd 10105, 10 floats (vsize 40): [band, enabled,
+input gain dB, mode 0 FFT/1 IIR, std 0 Flat/1 ISO226-2003/2 Fletcher-Munson/
+3 Robinson-Dadson/4 ISO226-2023, fft rank idx 0..6 (256..16384), approx 0..4, volume
+phons -83..7, hclip, hcrange dB]. Real defaults: 0 dB, FFT, ISO226-2023, 4096, Normal,
+0 phon, hclip off, 6 dB; module off by default. Reference generator, meters and UI-only
+ports omitted. Chain position: last module before the output limiter / post gain.
+Lock-free config via rt_config.h like the others; no allocation on the audio thread.
+Difftest case `loudcomp` against LADSPA loud_comp_stereo. Port executed by a subagent,
+reviewed + committed by me.
+
+## 2026-10-22 ~03:00 — loud_comp port DONE (subagent), reviewed, committed
+
+Result: lsp_wrap_loudcomp.{h,cpp} (transliteration of loud_comp.cpp 1.0.33, real line
+numbers cited), cmd 10105 as specified above, chain slot "loudcomp" registered last (after
+reverb, before the Lua tap; postGain + limiter follow in JamesDSPProcess), app card after
+Output control, Lua toggle_module("loudcomp"). Everything allocated once in create() for
+FFT_RANK_MAX; nothing on the audio thread. Difftest on the final binaries, both variants
+identical: loudcomp FFT (ISO226-2023, -30 phon, 4096) -111.6 dB; gate/comp/limiter/
+expander/autogain unchanged (-110/-114/-126/-108/-89); stress 174/112 reconfigures incl.
+rank and mode switches, no non-finite samples.
+
+IIR mode: -30.2 dB only. Proven to be the real plugin's own float32 floor, not a port
+error: the unmodified x86 LADSPA plugin run natively (AVX2) vs under qemu (SSE4.2) differs
+from itself by -31.5 dB in IIR mode and -115 dB in FFT mode, the same pair of numbers.
+Error is -22 dB at 20-28 Hz falling to -77 dB at 14-20 kHz (biquads with poles at
+|z| ~ 0.997 in the 22-80 Hz sections). -fno-fast-math on the LSP objects moved it to
+-32.9 dB only; reverted, -Ofast kept. Documented in make_reference.sh and the wrapper.
+
+Deviations (deliberate, documented in the header): reference generator, meters, clip
+indicator, mesh/UI ports omitted; bypass port = enabled argument; zero-cost-when-disabled
+skips the FFT path once the Bypass has settled off and resets delay/FFT/EQ state on
+re-enable (the real plugin's own mode-switch reset), so enabling fills in over 1<<rank
+samples (~85 ms at 4096). Real-plugin quirks kept verbatim (latency read from the
+previous rank; 16384-sample first delay on an 8192 line, dry path only).
+
+Chain capacity note: g_modules[16] is now exactly full; the mb-compressor rework (already
+a module) needs no new slot, anything else does.
+
+Vendor: Soong slot = full .a with loud_comp (header + slot committed together, as on
+10-21); release/full 268de2a3, release/audio 14d9d52e.

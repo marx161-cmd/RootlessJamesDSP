@@ -411,4 +411,58 @@
         <item>0</item>
         <item>1</item>
     </string-array>
+    <string-array name="loudcomp_mode_entries">
+        <item>@string/loudcomp_mode_fft</item>
+        <item>@string/loudcomp_mode_iir</item>
+    </string-array>
+    <string-array name="loudcomp_mode_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+    <string-array name="loudcomp_std_entries">
+        <item>@string/loudcomp_std_flat</item>
+        <item>@string/loudcomp_std_iso226_2003</item>
+        <item>@string/loudcomp_std_fletcher_munson</item>
+        <item>@string/loudcomp_std_robinson_dadson</item>
+        <item>@string/loudcomp_std_iso226_2023</item>
+    </string-array>
+    <string-array name="loudcomp_std_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="loudcomp_fft_entries" translatable="false">
+        <item>256</item>
+        <item>512</item>
+        <item>1024</item>
+        <item>2048</item>
+        <item>4096</item>
+        <item>8192</item>
+        <item>16384</item>
+    </string-array>
+    <string-array name="loudcomp_fft_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+    <string-array name="loudcomp_approx_entries">
+        <item>@string/loudcomp_approx_fastest</item>
+        <item>@string/loudcomp_approx_low</item>
+        <item>@string/loudcomp_approx_normal</item>
+        <item>@string/loudcomp_approx_high</item>
+        <item>@string/loudcomp_approx_best</item>
+    </string-array>
+    <string-array name="loudcomp_approx_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
 </resources>

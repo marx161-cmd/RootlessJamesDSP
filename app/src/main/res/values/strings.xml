@@ -240,6 +240,28 @@
     <string name="autogain_max_gain_on">Limit maximum gain</string>
     <string name="autogain_max_gain">Maximum gain</string>
 
+    <string name="loudcomp_enable">Loudness compensation</string>
+    <string name="loudcomp_input_gain">Input gain</string>
+    <string name="loudcomp_mode">Processing mode</string>
+    <string name="loudcomp_mode_fft">FFT (linear phase, adds latency)</string>
+    <string name="loudcomp_mode_iir">IIR (minimum latency)</string>
+    <string name="loudcomp_std">Equal-loudness contour</string>
+    <string name="loudcomp_std_flat">Flat (volume only)</string>
+    <string name="loudcomp_std_iso226_2003">ISO 226:2003</string>
+    <string name="loudcomp_std_fletcher_munson">Fletcher-Munson</string>
+    <string name="loudcomp_std_robinson_dadson">Robinson-Dadson</string>
+    <string name="loudcomp_std_iso226_2023">ISO 226:2023</string>
+    <string name="loudcomp_fft">FFT size</string>
+    <string name="loudcomp_approx">IIR approximation</string>
+    <string name="loudcomp_approx_fastest">Fastest (16 filters)</string>
+    <string name="loudcomp_approx_low">Low (24 filters)</string>
+    <string name="loudcomp_approx_normal">Normal (32 filters)</string>
+    <string name="loudcomp_approx_high">High (48 filters)</string>
+    <string name="loudcomp_approx_best">Best (64 filters)</string>
+    <string name="loudcomp_volume">Output volume (listening level in phons)</string>
+    <string name="loudcomp_hclip">Hard clip above the compensated level</string>
+    <string name="loudcomp_hcrange">Hard clip range</string>
+
     <string name="stereowide_enable">Soundstage wideness</string>
     <string name="stereowide_level">Wideness</string>
     <string name="stereowide_level_none">None</string>

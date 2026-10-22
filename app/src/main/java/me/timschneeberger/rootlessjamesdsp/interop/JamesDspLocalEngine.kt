@@ -172,6 +172,10 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         throw UnsupportedOperationException()
     }
 
+    override fun setLoudCompInternal(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean {
+        throw UnsupportedOperationException()
+    }
+
     override fun setVdcInternal(enable: Boolean, vdc: String): Boolean {
         return JamesDspWrapper.setVdc(handle, enable, vdc)
     }

@@ -172,4 +172,14 @@
     <string name="key_autogain_silence" translatable="false">autogain_silence</string>
     <string name="key_autogain_max_gain_on" translatable="false">autogain_max_gain_on</string>
     <string name="key_autogain_max_gain" translatable="false">autogain_max_gain</string>
+
+    <string name="key_loudcomp_enable" translatable="false">loudcomp_enable</string>
+    <string name="key_loudcomp_input_gain" translatable="false">loudcomp_input_gain</string>
+    <string name="key_loudcomp_mode" translatable="false">loudcomp_mode</string>
+    <string name="key_loudcomp_std" translatable="false">loudcomp_std</string>
+    <string name="key_loudcomp_fft" translatable="false">loudcomp_fft</string>
+    <string name="key_loudcomp_approx" translatable="false">loudcomp_approx</string>
+    <string name="key_loudcomp_volume" translatable="false">loudcomp_volume</string>
+    <string name="key_loudcomp_hclip" translatable="false">loudcomp_hclip</string>
+    <string name="key_loudcomp_hcrange" translatable="false">loudcomp_hcrange</string>
 </resources>

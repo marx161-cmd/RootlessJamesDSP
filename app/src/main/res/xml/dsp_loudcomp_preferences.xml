@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LSP Loudness Compensator (stereo): real plugin port, 2026-10-22.
+     Sent as AIDL cmd 10105, 10 floats: [0, enabled, input gain dB, mode
+     (0 FFT / 1 IIR), contour (0 Flat, 1 ISO226-2003, 2 Fletcher-Munson,
+     3 Robinson-Dadson, 4 ISO226-2023), FFT size index (0..6 = 256..16384),
+     IIR approximation (0..4), volume phons (-83..7), hard clip on, hard clip
+     range dB (0..24)]. Defaults are the real plugin's. -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <me.timschneeberger.rootlessjamesdsp.preference.SwitchPreferenceGroup
+        android:key="@string/key_loudcomp_enable"
+        android:disableDependentsState="false"
+        android:title="@string/loudcomp_enable"
+        android:icon="@drawable/ic_twotone_volume_up_24dp"
+        app:iconSpaceReserved="false">
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_loudcomp_volume"
+            android:title="@string/loudcomp_volume"
+            android:defaultValue="0"
+            app:minValue="-83"
+            app:maxValue="7"
+            app:unit="dB"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
+            android:defaultValue="4"
+            android:entries="@array/loudcomp_std_entries"
+            android:entryValues="@array/loudcomp_std_values"
+            android:title="@string/loudcomp_std"
+            android:key="@string/key_loudcomp_std"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/loudcomp_mode_entries"
+            android:entryValues="@array/loudcomp_mode_values"
+            android:title="@string/loudcomp_mode"
+            android:key="@string/key_loudcomp_mode"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
+            android:defaultValue="4"
+            android:entries="@array/loudcomp_fft_entries"
+            android:entryValues="@array/loudcomp_fft_values"
+            android:title="@string/loudcomp_fft"
+            android:key="@string/key_loudcomp_fft"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false"/>
+        <ListPreference
+            android:defaultValue="2"
+            android:entries="@array/loudcomp_approx_entries"
+            android:entryValues="@array/loudcomp_approx_values"
+            android:title="@string/loudcomp_approx"
+            android:key="@string/key_loudcomp_approx"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false"/>
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_loudcomp_input_gain"
+            android:title="@string/loudcomp_input_gain"
+            android:defaultValue="0"
+            app:minValue="-24"
+            app:maxValue="24"
+            app:unit="dB"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false"/>
+        <SwitchPreferenceCompat
+            android:key="@string/key_loudcomp_hclip"
+            android:title="@string/loudcomp_hclip"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"/>
+        <me.timschneeberger.rootlessjamesdsp.preference.MaterialSeekbarPreference
+            android:key="@string/key_loudcomp_hcrange"
+            android:title="@string/loudcomp_hcrange"
+            android:defaultValue="6"
+            app:minValue="0"
+            app:maxValue="24"
+            app:unit="dB"
+            app:allowDividerAbove="false"
+            app:updatesContinuously="true"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false"/>
+    </me.timschneeberger.rootlessjamesdsp.preference.SwitchPreferenceGroup>
+</PreferenceScreen>

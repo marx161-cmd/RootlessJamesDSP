@@ -50,3 +50,6 @@
 [submodule "app/src/main/cpp/lsp-autogain"]
 	path = app/src/main/cpp/lsp-autogain
 	url = https://github.com/lsp-plugins/lsp-plugins-autogain.git
+[submodule "app/src/main/cpp/lsp-loud-comp"]
+	path = app/src/main/cpp/lsp-loud-comp
+	url = https://github.com/lsp-plugins/lsp-plugins-loud-comp.git

@@ -64,6 +64,7 @@ file(GLOB LSP_DSP_SOURCES
     lsp-dsp-units/src/main/dynamics/Limiter.cpp
     lsp-dsp-units/src/main/dynamics/DynamicProcessor.cpp
     lsp-dsp-units/src/main/util/Delay.cpp
+    lsp-dsp-units/src/main/util/SpectralProcessor.cpp
     lsp-dsp-units/src/main/util/Sidechain.cpp
     lsp-dsp-units/src/main/util/RawRingBuffer.cpp
     lsp-dsp-units/src/main/util/Oversampler.cpp
@@ -157,6 +158,7 @@ add_library(jamesdsp SHARED
     lsp_wrap_compressor.cpp
     lsp_wrap_expander.cpp
     lsp_wrap_autogain.cpp
+    lsp_wrap_loudcomp.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
@@ -175,6 +177,8 @@ target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-dsp-
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
+# generated/iso226/*.h equal-loudness tables for lsp_wrap_loudcomp.cpp
+target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-loud-comp/include)
 target_include_directories(jamesdsp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(jamesdsp PRIVATE ${JDSP_LUA_BRIDGE_DEFS} LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp PROPERTIES OUTPUT_NAME jamesdsp_engine)
@@ -196,6 +200,7 @@ add_library(jamesdsp_static STATIC
     lsp_wrap_compressor.cpp
     lsp_wrap_expander.cpp
     lsp_wrap_autogain.cpp
+    lsp_wrap_loudcomp.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
@@ -214,6 +219,7 @@ target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/l
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-runtime/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-common-lib/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-lltl-lib/include)
+target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lsp-loud-comp/include)
 target_include_directories(jamesdsp_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(jamesdsp_static PRIVATE ${JDSP_LUA_BRIDGE_DEFS} LSP_DSP_UNITS_PUBLIC= LSP_LLTL_LIB_BUILTIN)
 set_target_properties(jamesdsp_static PROPERTIES OUTPUT_NAME jamesdsp_engine_static POSITION_INDEPENDENT_CODE ON)

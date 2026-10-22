@@ -177,6 +177,18 @@ class JamesDspRemoteEngine(
         )) == AudioEffect.SUCCESS
     }
 
+    // Sends AIDL cmd 10105 (native: jamesdsp.c, vsize 40 block, "Loudness
+    // compensation: band, enabled, input gain dB, mode (0 FFT/1 IIR), contour
+    // (0 Flat..4 ISO226-2023), FFT size index (0..6), IIR approximation (0..4),
+    // volume phons, hard clip on, hard clip range dB" -- the real LSP loud_comp
+    // port, lsp_loudcomp_configure()).
+    override fun setLoudCompInternal(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean {
+        return effect.setParameterFloatArray(10105, floatArrayOf(
+            0f, if (enable) 1f else 0f, inputGain, mode.toFloat(), std.toFloat(), fft.toFloat(), approx.toFloat(),
+            volume, if (hclip) 1f else 0f, hcrange
+        )) == AudioEffect.SUCCESS
+    }
+
     // Sends AIDL cmd 10101 (native: jamesdsp.c, "Compressor: enabled,
     // threshold, ratio, knee, attack, release, hold" — routes to the real
     // LSP compressor via lsp_comp_configure()). Was cmd 115/1200, which

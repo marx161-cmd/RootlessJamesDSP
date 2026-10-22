@@ -86,6 +86,17 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val expRelease = cache.get(R.string.key_expander_release, 100f)
             val expHold = cache.get(R.string.key_expander_hold, 0f)
 
+            cache.select(Constants.PREF_LOUDCOMP)
+            val lcEnabled = cache.get(R.string.key_loudcomp_enable, false)
+            val lcInputGain = cache.get(R.string.key_loudcomp_input_gain, 0f)
+            val lcMode = cache.get(R.string.key_loudcomp_mode, "0").toInt()      // real default: FFT
+            val lcStd = cache.get(R.string.key_loudcomp_std, "4").toInt()        // real STD_DFL = ISO226-2023
+            val lcFft = cache.get(R.string.key_loudcomp_fft, "4").toInt()        // real FFT_RANK_IDX_DFL = 4096
+            val lcApprox = cache.get(R.string.key_loudcomp_approx, "2").toInt()  // real default: Normal
+            val lcVolume = cache.get(R.string.key_loudcomp_volume, 0f)
+            val lcHClip = cache.get(R.string.key_loudcomp_hclip, false)
+            val lcHCRange = cache.get(R.string.key_loudcomp_hcrange, 6f)
+
             cache.select(Constants.PREF_AUTOGAIN)
             val autoGainEnabled = cache.get(R.string.key_autogain_enable, false)
             val autoGainLevel = cache.get(R.string.key_autogain_level, -23f)
@@ -163,6 +174,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                     Constants.PREF_OUTPUT -> setOutputControl(limiterEnabled, limiterThreshold, limiterAttack, limiterRelease, limiterKnee, outputPostGain)
                     Constants.PREF_GATE -> setGate(gateEnabled, gateOpenThreshold, gateCloseThreshold, gateAttack, gateRelease, gateHold, gateReduction)
                     Constants.PREF_EXPANDER -> setExpander(expEnabled, expMode, expThreshold, expRatio, expKnee, expAttack, expRelease, expHold)
+                    Constants.PREF_LOUDCOMP -> setLoudComp(lcEnabled, lcInputGain, lcMode, lcStd, lcFft, lcApprox, lcVolume, lcHClip, lcHCRange)
                     Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled, autoGainLevel, autoGainLongPeriod, autoGainShortPeriod, autoGainDrift, autoGainSilence, autoGainMaxGain, autoGainMaxOn)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
@@ -224,6 +236,11 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     fun setAutoGain(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
     {
         return setAutoGainInternal(enable, level, longPeriod, shortPeriod, drift, silence, maxGain, maxGainOn)
+    }
+
+    fun setLoudComp(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
+    {
+        return setLoudCompInternal(enable, inputGain, mode, std, fft, approx, volume, hclip, hcrange)
     }
 
     fun setVdc(enable: Boolean, vdcPath: String): Boolean
@@ -455,6 +472,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     protected abstract fun setGateInternal(enable: Boolean, openThreshold: Float, closeThreshold: Float, attack: Float, release: Float, hold: Float, reduction: Float): Boolean
     protected abstract fun setExpanderInternal(enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     protected abstract fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
+    protected abstract fun setLoudCompInternal(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean
