@@ -159,3 +159,35 @@ ShaderEditor:
 - Source: committed — engine `ad7813e`, app `5cfc097`, vendor `f32fd9c`.
 - Next: audio-only / full build split + validation + publish, see SCOPE.md
   2026-10-21 entry.
+
+## 11. 2026-10-22 — current state (supersedes §10)
+
+Everything below is committed + pushed; nothing is uncommitted in any of the four repos.
+
+- **Phone right now (RAM-only, a reboot reverts to the 2026-10-10 OTA build `e041d142…`):**
+  audio HAL runs `vendor/JamesDSP/release/full/libjamesdspaidl.so` = `bec5b319…` bind-mounted
+  (`bench/swap_effect.sh`); re-mount with
+  `JDSP_BENCH_DEVICE=100.69.13.12:5555 vendor/JamesDSP/bench/swap_effect.sh "$PWD/release/full/libjamesdspaidl.so"`
+  then relaunch the JDSP app + pause/play. JDSP app = rootFdroid arm64 APK installed 12:38
+  (seekbar-unit crash fix). ShaderEditor v110 installed 13:5x. Preset "Pixelbuds Full" rewritten
+  with sane dynamics (backup "Pixelbuds Full (before sane 2026-10-22)").
+- **Commits:** engine (submodule `app/src/main/cpp/libjamesdsp`, push `private fft-x2-batched-convolver:main`)
+  `08d8f59`; app (this repo, push `private master:main`) `c98d940` + `1918a50` + `974f13c`; vendor
+  (`~/homelab/crDroid/vendor/JamesDSP`, push `private local-termux-changes:master`) `07463b3`, `3530f5f`;
+  ShaderEditor (`~/builds/android/ShaderEditor`, push `fork HEAD:master`) `41ac7cd` v108, `892644d` v109,
+  `ae13ea4` v110; shader-backdrop `1b51c78` (worms v8.2 + emberbox levels, pushed to the phone, unjudged).
+- **What the weekend OTA bakes** (vendor Soong slot = full `.a` `7c0b568c…`→ now `4e0c2371…`): the whole
+  2026-10-21/22 module set, the Butterworth 108-band meter + bands.bin v3 (cooked frame + 11 features
+  after the ring), and the SCHED_FIFO 5 effect thread (measured: involuntary preemptions 70 % → 0.4 %).
+  Also promote the rootFdroid JDSP APK (NOT rootFull: it crashes at launch as a system app) and
+  ShaderEditor v110 into prebuilts-apk (see `blazer-repack-privapp` output + APPS_MANIFEST.md).
+- **Evening checklist (user at home):** 1) `bench/run_variant_bench.sh` for the full variant with the
+  user's preset, screen off → fill the flagged README row; 2) everything-on listen incl. LiveProg with
+  the RT thread; 3) re-select ShaderEditor shaders 244 (worms) / 257 (emberbox) and judge the specials;
+  4) listen-test loud_comp / mb_comp (never done); 5) publish decision: which of the 3 private forks
+  go public (audio-only variant is the candidate; it has no meter so nothing today affects it).
+- **Known facts to keep:** HAL cpuset is cores 0-6; HAL reports 189 ms Bluetooth output latency; the
+  13:04 HAL death today was the user tearing it down on purpose (not a bug); harness runs are
+  standalone (no HAL impact) but load the phone CPU ~1 min.
+- Scope records: `SCOPE.md` entries 2026-10-22 ~12:40 / ~13:00 / ~13:25; ShaderEditor `scope.md`
+  ~13:40 / ~13:55; shader-backdrop `scope.md` ~14:05.
