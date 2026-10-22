@@ -320,3 +320,36 @@ UnknownFormatConversionException on every bind -> the DSP page crash-looped whil
 switch was on. Fix at the shared layer: format the number, then append the unit (any unit
 is now safe). Unblocked live by flipping `mbcomp_enable` to false in the saved prefs, fixed
 APK installed 12:38, switch restored to on, no crash after relaunch.
+
+## 2026-10-22 ~13:00 — 108-band meter parity with the desktop feed (user: easy wins + the .so-bake part, OTA this weekend)
+
+Why: the phone ports copy desktop movement code 1:1 but the phone meter feeds them something
+else. Measured 2026-10-22: one RBJ biquad at Q 17.3 per band (neighbour semitone -7 dB, octave
+-28 dB) vs the desktop's Butterworth with +-1/2-semitone edges, order 2..4 per octave (-12/-57
+.. -24/-115 dB); raw linear RMS vs the desktop's norm_db 0..1 (-60..0 dB) with 60/70 ms
+attack/release; RMS only vs flux/onset/centroid + named ranges; ShaderEditor reads the latest
+frame at 30 Hz as a 108x1 texture although the engine publishes 60 Hz + a 32-frame ring; a
+stalled file (pause) is not detected by the texture reader; no per-band group-delay alignment.
+
+Decisions (engine, full variant only; the audio-only publish candidate has no meter):
+1. Filter bank = the desktop design exactly (band_filters.py / shader_bands.cpp
+   design_butterworth_bandpass): centre 27.5*2^(b/12), -3 dB at +-1/2 semitone, orders per
+   octave {2,2,2,3,3,4,4,4,4} for the 9 phone octaves. 336 biquads/sample mono instead of 108;
+   meter cost re-measured on the bench afterwards (was ~2 % of the HAL incl. Lua).
+2. bands.bin v3: bytes [0,432) stay the latest RAW frame (old readers untouched); header
+   version 3 with the ring offset as a field; NEW regions: a "cooked" 108-float frame
+   (norm_db floor -60 dB + per-band attack 60 / release 70 ms envelope, the desktop's
+   constants) and a feature block (rms, sub, bass, lowmid, mid, highmid, presence,
+   brilliance, centroid, flux, onset) computed per 60 Hz frame by transliterating the
+   desktop plugin's formulas, so u_* names mean the same on both machines. Raw ring kept.
+3. ShaderEditor: read the ring at 60 Hz by seq (not the 432 bytes at 30 Hz); `bands` stays
+   RAW latest (existing phone shaders keep their tuning); new samplers `bands_db` (cooked
+   108x1, desktop-compatible 0..1) and `bands_hist` (raw 108x32, newest row 0); new uniforms
+   u_onset, u_onset_smooth, u_onset_accum, u_flux, u_centroid and the named ranges with the
+   desktop names; texture zeroed when seq stalls > 150 ms (pause); glTexSubImage2D updates.
+4. OPEN (user's call, audible/visible trade-off): per-band group-delay alignment like the
+   desktop's comp_rows(). Full alignment costs ~280 ms of visual latency at A0 (order 2).
+   Proposal: align with a CAP (default 100 ms: everything from A1 up lines up, octave 0 stays
+   up to ~180 ms late), cap in a file next to beat_offset_ms.txt; default on.
+Order: engine + vendor first (bind-mount trial, then the weekend OTA bakes the full .a),
+ShaderEditor second (APK, no OTA needed).
