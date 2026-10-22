@@ -353,3 +353,16 @@ Decisions (engine, full variant only; the audio-only publish candidate has no me
    up to ~180 ms late), cap in a file next to beat_offset_ms.txt; default on.
 Order: engine + vendor first (bind-mount trial, then the weekend OTA bakes the full .a),
 ShaderEditor second (APK, no OTA needed).
+
+## 2026-10-22 ~13:25 — meter parity + realtime effect thread BUILT; phone swap pending
+
+Engine (submodule): Butterworth bank transliterated from shader_bands.cpp (checked against
+band_filters.design(): worst 1.8e-9 dB over all 108 bands at -12..+12 semitone probes),
+named ranges, cooked frame + 11 features, bands.bin v3 (regions appended after the ring,
+header version 3; BeatClock's v2 offsets untouched). Wrapper (vendor): SCHED_FIFO 5 for the
+effect's process thread on first process call, measured cause: the framework thread ran
+SCHED_OTHER nice -19 with 70 % involuntary preemptions at 64-84 % of a 400-730 MHz core.
+Regression difftest on the new binaries: identical numbers to the morning run on every case,
+audio == full, stress clean. ShaderEditor v108 (41ac7cd, installed 13:19) reads v2 and v3.
+Pending: bind-mount trial (user's moment: HAL restart cuts audio), verify bands.bin v3 values
++ SCHED_FIFO in /proc, re-measure the full variant's HAL CPU with the bench at home.
