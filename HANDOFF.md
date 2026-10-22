@@ -217,3 +217,10 @@ SCOPE.md entries 2026-10-22 ~23:45 and 2026-10-23 ~00:05. Pieces and where they 
   timed out all evening although `tailscale status` showed it active -- the USB-tether IP with
   the `id_ed25519_oppo_usb` key and `BatchMode=yes` works without prompting.
 - **Open:** publish decision (which forks go public); the OTA itself (user says when).
+
+### 12a. 2026-10-23 01:30 — OTA SHIPPED
+
+The 2026-10-23 OTA (`docs-consolidated/70-crdroid-rom.md`, dated section) bakes everything in §11/§12:
+vendor `libjamesdspaidl.so` `fefe3dd8…` is the running HAL from the vendor partition (no bind-mount),
+TermuxJDSP (this desk-send build) is the active `/product` copy after rolling back the `/data`
+overlay. Nothing JDSP-side is pending for an OTA any more. Open: publish decision only.
