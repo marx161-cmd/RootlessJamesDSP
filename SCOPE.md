@@ -140,3 +140,30 @@ dsp_expander_preferences.xml + PREF_EXPANDER done by me.
 pin); port after the expander; LADSPA autogain_stereo is available on comrade for the
 difftest.
 Also: compander knee slider minimum raised to 0.063 (the engine clamps anyway).
+
+## 2026-10-22 (night) — on-device bench done, numbers in release/README.md
+
+Bench (vendor commit 6bd12f5): Pixel 10 Pro, 60 s same track, screen off, unplugged,
+user preset (convolver+DDC+GEQ+LiveProg, gate/compander off, limiter on). Audio HAL
+process CPU, % of one core: stock 60.9, audio-only 23.9, full 27.7. Whole-phone draw
+2184 / 1764 / 1824 mW (fuel gauge, one run each). Profile (simpleperf, full): convolver
+FFT 28 %, JamesDSPProcess 9 %, limiter 6 %, EEL 3 %, DDC 2.5 %, Lua+meter 2.5 %. The HAL
+process also hosts VLC's own DynamicsProcessing effect (~12 % of samples), same for all
+three variants.
+
+Found on the way (not scope changes, recorded so nobody re-derives them):
+- `bench/swap_effect.sh` had stacked 60+ bind-mount layers: /data and /vendor are shared
+  mounts, so each `mount --bind` also propagated onto the previous source file's path,
+  and `umount` of a mapped .so is EBUSY while the HAL runs. Fixed: lazy-unmount every
+  layer first, push to a per-sha filename, `mount -o private none <target>` afterwards.
+- The bench wait loop itself was fine; the previous night's failure was the JamesDSP
+  root service not re-attaching after the HAL restart. The loop now also requires an
+  active output thread and relaunches the app every 25 s while the effect is missing.
+- The app APK built on 2026-10-21 was the `rootFull` flavor (Firebase/Crashlytics);
+  it crashes at launch as a system app (FirebaseApp not initialised, Cache.cleanup
+  Timber tree). Every install so far has been `rootFdroid`. Rolled back; the fdroid
+  build with the limiter/expander/autogain cards replaces it.
+
+Phone state: `release/full` (2fdbc008) bind-mounted for the ALR listening check; reboot
+returns to the OTA .so (e041d142). Still open: the ALR listen (user), README-level
+publish decisions (which repos go public), then the module list for the 1-2 week window.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- LSP Autogain (stereo, internal sidechain, K-weighted BS.1770 loudness) --
+<!-- LSP Autogain (stereo, internal sidechain, K-weighted BS.1770 loudness):
      real plugin port, 2026-10-21; replaces the legacy RMS integrator. Sent as
      AIDL cmd 10104, 9 floats: [0, enabled, target LUFS, long period ms,
      short period ms, drift dB, silence LUFS, max gain dB, max gain on]. -->

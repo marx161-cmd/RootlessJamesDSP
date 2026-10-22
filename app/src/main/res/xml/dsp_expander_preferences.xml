@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- LSP Expander (stereo, internal sidechain) -- real plugin port, 2026-10-21.
+<!-- LSP Expander (stereo, internal sidechain): real plugin port, 2026-10-21.
      Sent as AIDL cmd 10103, 9 floats: [0, enabled, mode, threshold dB, ratio,
      knee (linear), attack ms, release ms, hold ms]. -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
