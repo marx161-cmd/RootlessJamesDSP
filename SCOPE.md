@@ -366,3 +366,33 @@ Regression difftest on the new binaries: identical numbers to the morning run on
 audio == full, stress clean. ShaderEditor v108 (41ac7cd, installed 13:19) reads v2 and v3.
 Pending: bind-mount trial (user's moment: HAL restart cuts audio), verify bands.bin v3 values
 + SCHED_FIFO in /proc, re-measure the full variant's HAL CPU with the bench at home.
+
+## 2026-10-22 ~23:45 — "Desk send": Pixel output tap → Oppo desk speaker (user add-on before the OTA)
+
+Goal (user, at home): hear the Pixel's audio on the desk speaker together with comrade's music,
+with no extra hop. Desk speaker path today: comrade → ffmpeg UDP s16le/48k/stereo over USB tether
+→ Oppo Find X2 Pro Termux (`listen-amd`: ffplay `udp://@:1236` → pulse SLES sink → Bluetooth).
+Decisions:
+1. Merge point = the Oppo's pulseaudio (additive mix; the comrade stream never waits on the
+   phone one). NOT via comrade (user: JDSP already shapes the phone audio; one hop fewer).
+   Pixel reaches the Oppo over Tailscale (user turns the Oppo's Wi-Fi on at the desk).
+2. JDSP engine (full variant only, like the meter): a post-chain OUTPUT TAP after postGain +
+   limiter, written as s16 interleaved stereo into a mmap'd ring file
+   `/data/data/com.termux.jdsp/files/tap.bin` (same dir/sepolicy as bands.bin; pure memory
+   writes on the audio thread, no syscalls). Header: magic "JDTP", version 1, seq = frames
+   written (release store), ringFrames 32768 (0.68 s @ 48k), channels 2, sampleRate, flags
+   (enabled, muteLocal). Cmd 10107 payload 7 floats [band=0, enabled, muteLocal, gainDb, 0,0,0]
+   (vsize 28, the only free block size); Lua path `cmd == 10107`.
+3. "Mute local" is part of the toggle (default ON): Android applies track volume BEFORE the
+   effect, so phone volume 0 would silence the tap too; the engine zeroes its output after
+   copying instead. Gain -24..+12 dB on the tap only.
+4. Pixel Termux sender `jdsp-tap-send` (C, vendor `tools/`): polls tap.bin every 5 ms, sends
+   240-frame (960-byte) UDP packets to the Oppo :1237; when enabled but the tap stalls (nothing
+   playing) it sends SILENCE at the real rate so ffplay's buffer never drifts; when disabled it
+   sends nothing. Started from `~/.termux/boot/`.
+5. Oppo: `listen-pixel` = `listen-amd` twin on `udp://@:1237` + boot script `21-listen-pixel.sh`.
+6. App: "Desk send" card (enable, mute local, gain) next to the other dynamics cards.
+Latency for phone sounds at the speaker ≈ the comrade path's (~1.1 s, Bluetooth tail dominates);
+fine for music/notifications, not for anything that must match the phone's screen.
+Order: engine + vendor (bind-mount swap + listen), app APK, Pixel sender, Oppo receiver;
+THEN the OTA bake (this lands in the Soong slot .a).
