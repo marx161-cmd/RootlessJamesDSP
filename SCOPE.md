@@ -311,3 +311,12 @@ autogain -89, loudcomp -112 / IIR -30, mbcomp -79 / -91), audio == full, stress 
 Soong slot = the new full .a. Phone NOT re-swapped (still on 021d0e3a from 05:05; the new
 binaries differ only by the path string); user at work, listen tests of loud_comp / mb_comp
 and the publish decision still open.
+
+## 2026-10-22 ~12:40 — app crash on the multiband card (user, "toggled on everything")
+
+`MaterialSeekbarPreference.updateLabelValue()` spliced the unit into the `String.format`
+pattern; the dry/wet seekbar's unit is `%`, so a trailing `%` threw
+UnknownFormatConversionException on every bind -> the DSP page crash-looped while the
+switch was on. Fix at the shared layer: format the number, then append the unit (any unit
+is now safe). Unblocked live by flipping `mbcomp_enable` to false in the saved prefs, fixed
+APK installed 12:38, switch restored to on, no crash after relaunch.

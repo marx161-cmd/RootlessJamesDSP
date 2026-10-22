@@ -433,7 +433,10 @@ class MaterialSeekbarPreference : Preference {
 
             if(valueLabelOverride == null)
             {
-                mSeekBarValueTextView!!.text = "%.${mPrecision}f${mUnit}".format(Locale.ROOT, value)
+                // Format the number alone, then append the unit: a unit containing '%'
+                // (the multiband dry/wet mix) used to be spliced into the format
+                // pattern and crashed the card (UnknownFormatConversionException, 2026-10-22).
+                mSeekBarValueTextView!!.text = "%.${mPrecision}f".format(Locale.ROOT, value) + mUnit
             }
             else
             {
