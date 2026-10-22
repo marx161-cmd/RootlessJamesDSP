@@ -20,6 +20,11 @@ project(jamesdsp-wrapper LANGUAGES CXX)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types -Wno-implicit-int -Wno-implicit-function-declaration -flto")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections -Ofast -ftree-vectorize -DDEBUG -flto")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -flto")
+# Reproducibility: __FILE__ (eel2 HPFloat/print.c) and debug info otherwise embed the
+# build host's absolute source/build paths in the shipped .so (found 2026-10-22,
+# one /home/... string in the stripped release). Map both roots to short fixed names.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=jamesdsp -ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=build -ffile-prefix-map=${CMAKE_ANDROID_NDK}=ndk")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=jamesdsp -ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=build -ffile-prefix-map=${CMAKE_ANDROID_NDK}=ndk")
 
 # JDSP_SVE2_FFT_X2: build-level guard shared by codelet.c/.h AND
 # FFTConvolver.c/.h, so both agree on whether the SVE2 _x2 FFT variants

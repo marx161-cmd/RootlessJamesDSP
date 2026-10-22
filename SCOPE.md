@@ -293,3 +293,21 @@ analyzer/meters/meshes/UI ports omitted, react/shift accepted but inert (they on
 analyzer), cbe (split enable) INCLUDED (my omit list had it by mistake). Zero-cost-when-
 disabled with the real mode-switch reset on re-enable; Compressor envelope has no reset API
 (decays, as the real plugin). Known gap: Modern mode has no difftest case (stress only).
+
+## 2026-10-22 ~12:40 — follow-ups closed: preset rows, Modern difftest, reproducible paths
+
+Scope (from the 05:05 follow-up list, no new behaviour): 1) `presets/make_defaults_preset.py`
+gains dsp_loudcomp.xml (9 keys) and dsp_mbcomp.xml (215 keys, generated from the same
+split/band tables as readMbCompParams()), verified key-for-key and value-for-value against
+the two preference XMLs; regenerated tar pushed to the phone's Presets dir. 2) difftest case
+`mbcomp_modern` (mode 1, same band settings, lag 0): port -59.5 dB vs the real plugin; the
+real plugin's own AVX2-vs-SSE4.2 self-diff in Modern mode is -61.9 dB (Classic re-measured
+-76.6, as recorded), residual 99.5 % below 252 Hz -> reference float32 floor, like Classic.
+3) `-ffile-prefix-map` for source, build and NDK roots in app/src/main/cpp/CMakeLists.txt
+(the one `/home/...` string in the stripped release, eel2 HPFloat/print.c `__FILE__`, is
+now `jamesdsp/...`); `release/*/SHA256SUMS` list bare file names. Both variants rebuilt;
+regression unchanged on every case (gate -110, comp -114, limiter -126, expander -108,
+autogain -89, loudcomp -112 / IIR -30, mbcomp -79 / -91), audio == full, stress clean.
+Soong slot = the new full .a. Phone NOT re-swapped (still on 021d0e3a from 05:05; the new
+binaries differ only by the path string); user at work, listen tests of loud_comp / mb_comp
+and the publish decision still open.
