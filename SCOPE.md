@@ -247,3 +247,49 @@ NSEEL_code_execute (the LiveProg EEL interpreter running the DRX10K compander sc
 convolver 14 %, everything else small; the EEL script alone costs about twice the rest of
 the chain. That is the user's script choice, not an engine issue, but worth knowing when
 reading HAL CPU numbers. Phone back on 5011f9eb.
+
+## 2026-10-22 ~04:00 — multiband compressor: NEW module (not a rework), port started
+
+Finding: there is no multiband compressor in the tree any more. The old hand-wrap
+(lsp_mb_dynamics) was removed as dead code on 2026-08-16, AIDL cmd 10102 is a "MB EQ" no-op,
+and the app has no card. So this is a new module like loud_comp, built from the already
+present submodule lsp-mb-compressor (1.0.35, 2026-06-13).
+
+Scope (user: "keep going"; layout decision stated, not asked): faithful stereo port of
+mb_compressor, all three modes (Classic / Modern / Linear Phase), BANDS_MAX 8 with every
+per-band control, 7 splits, global gains / dry-wet / reactivity / shift / envelope boost;
+internal sidechain only (no external sidechain input exists in the chain); analyzer, meters,
+meshes and UI-only ports omitted. AIDL cmd 10106, one fixed payload (~180 floats, layout
+documented in the wrapper header). Chain slot "mbcomp" after expander, before autogain (level
+after band compression); chain capacity 16 -> 24. App card after the Expander card: global
+section, splits section, 8 band sections (plain seekbar/list/switch preferences, so presets
+stay plain preference files). Difftest cases mbcomp (Classic) and mbcomp_lp (Linear Phase,
+latency-aligned) vs LADSPA mb_compressor_stereo. Port by subagent, reviewed + committed by me.
+
+## 2026-10-22 ~04:50 — mb_compressor port DONE (subagent), reviewed; chain order kept stock
+
+Result: lsp_wrap_mbcomp.{h,cpp} (1564 lines, transliteration of mb_compressor.cpp 1.0.35,
+stereo, internal sidechain), cmd 10106, payload 218 floats (vsize 872): [band, enabled,
+10 globals (mode 0 Classic/1 Modern/2 LP, in/out/dry/wet dB, dry-wet %, reactivity, shift,
+envelope boost, stereo split), 7 x (split enable, freq), 8 x 24 per-band params]; layout in
+the header. Chain: registered right after expander (registration index 3); chain capacity
+16 -> 24. App card after Expander: global + splits + 8 band sections (215 keys; the per-band
+keys are generated strings, PreferenceCache got a string-key get()). Difftest, final binaries,
+full == audio: mbcomp Classic -78.5 dB, mbcomp Linear Phase -89.5 dB; the unmodified x86
+reference differs from itself (AVX2 vs SSE4.2) by -76.6 / -91.0 dB in the same two modes,
+so the port sits at the reference's own float32 floor (>99.9 % of the residual below 800 Hz,
+the 100/800 Hz LR4 biquads). Regression unchanged: gate -110, comp -114, limiter -126,
+expander -108, autogain -88, loudcomp -112 / IIR -30. Stress 153/125 reconfigures clean.
+Codegen note: two different -Ofast/LTO builds differ by ~-96 dB; treat ~1 dB as jitter.
+
+Correction by me: the subagent rotated default_order[] to {1,2,3,0,...} to honour "before
+autogain", which moved autogain from FIRST in the chain (stock behaviour, legacy integrator
+at the input; the user's preset has it on) to after the expander. Reverted to registration
+order: autogain, gate, expander, mbcomp, tube, compressor, ... loudcomp, lua. Engine + vendor
+rebuilt after the revert; regression difftest re-run on the final binaries.
+
+Deviations (documented in the header): sidechain type pinned internal, premix omitted,
+analyzer/meters/meshes/UI ports omitted, react/shift accepted but inert (they only fed the
+analyzer), cbe (split enable) INCLUDED (my omit list had it by mistake). Zero-cost-when-
+disabled with the real mode-switch reset on re-enable; Compressor envelope has no reset API
+(decays, as the real plugin). Known gap: Modern mode has no difftest case (stress only).

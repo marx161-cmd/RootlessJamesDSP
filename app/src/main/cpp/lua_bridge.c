@@ -157,7 +157,8 @@ static const char *g_module_names[] = {
     "gate", "compressor", "autogain", "reverb", "stereo", "tube",
     "convolver", "eq", "crossfeed", "ddc", "arbeq", "liveprog", "lua",
     "expander", // appended (index 13) -- jdspController.c moduleStates[] must match
-    "loudcomp"  // appended (index 14)
+    "loudcomp", // appended (index 14)
+    "mbcomp"    // appended (index 15)
 };
 #define JDSP_MODULE_COUNT ((int)(sizeof(g_module_names)/sizeof(g_module_names[0])))
 static int g_module_states[JDSP_MODULE_COUNT] = {0};
@@ -571,6 +572,10 @@ static int toggle_module_dispatch(const char *name, int enable) {
     if (strcmp(name, "loudcomp") == 0) {
         float p = (float)enable;
         return g_cmd_handler(10105, &p, 1);
+    }
+    if (strcmp(name, "mbcomp") == 0) {
+        float p = (float)enable;
+        return g_cmd_handler(10106, &p, 1);
     }
 
     return -1; // unknown module

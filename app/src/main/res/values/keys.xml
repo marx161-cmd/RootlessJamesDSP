@@ -182,4 +182,14 @@
     <string name="key_loudcomp_volume" translatable="false">loudcomp_volume</string>
     <string name="key_loudcomp_hclip" translatable="false">loudcomp_hclip</string>
     <string name="key_loudcomp_hcrange" translatable="false">loudcomp_hcrange</string>
+
+    <string name="key_mbcomp_enable" translatable="false">mbcomp_enable</string>
+    <string name="key_mbcomp_mode" translatable="false">mbcomp_mode</string>
+    <string name="key_mbcomp_input_gain" translatable="false">mbcomp_input_gain</string>
+    <string name="key_mbcomp_output_gain" translatable="false">mbcomp_output_gain</string>
+    <string name="key_mbcomp_dry_gain" translatable="false">mbcomp_dry_gain</string>
+    <string name="key_mbcomp_wet_gain" translatable="false">mbcomp_wet_gain</string>
+    <string name="key_mbcomp_drywet" translatable="false">mbcomp_drywet</string>
+    <string name="key_mbcomp_envb" translatable="false">mbcomp_envb</string>
+    <string name="key_mbcomp_ssplit" translatable="false">mbcomp_ssplit</string>
 </resources>

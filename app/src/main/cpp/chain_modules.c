@@ -14,13 +14,16 @@ typedef struct {
     int *enabled;
 } ChainModule;
 
-static ChainModule g_modules[16];
+// Capacity raised 16 -> 24 (2026-10-22): the table was exactly full with 16
+// modules when the LSP Multiband Compressor ("mbcomp") was added.
+#define CHAIN_MAX_MODULES 24
+static ChainModule g_modules[CHAIN_MAX_MODULES];
 static int g_module_count = 0;
-static int g_chain_order[16];
+static int g_chain_order[CHAIN_MAX_MODULES];
 static int g_chain_len = 0;
 
 void chain_register(const char *name, void (*fn)(float*,float*,unsigned), int *toggle) {
-    if (g_module_count >= 16) return;
+    if (g_module_count >= CHAIN_MAX_MODULES) return;
     g_modules[g_module_count++] = (ChainModule){name, fn, toggle};
 }
 
@@ -30,7 +33,7 @@ void chain_reset(void) {
 }
 
 int chain_set_order(int *indices, int len) {
-    if (len > 16) len = 16;
+    if (len > CHAIN_MAX_MODULES) len = CHAIN_MAX_MODULES;
     g_chain_len = len;
     for (int i = 0; i < len; i++) g_chain_order[i] = indices[i];
     return 0;

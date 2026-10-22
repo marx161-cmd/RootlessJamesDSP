@@ -75,6 +75,14 @@ file(GLOB LSP_DSP_SOURCES
     lsp-dsp-units/src/main/filters/Filter.cpp
     lsp-dsp-units/src/main/filters/FilterBank.cpp
     lsp-dsp-units/src/main/misc/windows.cpp
+    # lsp_wrap_mbcomp.cpp (LSP Multiband Compressor port, 2026-10-22):
+    # Modern-mode ladder bank, Linear-Phase FFT crossover (+ its splitter and
+    # FFT-curve helpers). Compressor/Sidechain/Filter/Equalizer/Delay/Bypass
+    # it also drives are already listed above.
+    lsp-dsp-units/src/main/filters/DynamicFilters.cpp
+    lsp-dsp-units/src/main/util/FFTCrossover.cpp
+    lsp-dsp-units/src/main/util/SpectralSplitter.cpp
+    lsp-dsp-units/src/main/misc/fft_crossover.cpp
     lsp-common-lib/src/main/singletone.cpp
     lsp-common-lib/src/main/debug.cpp
     lsp-common-lib/src/main/status.cpp
@@ -159,6 +167,7 @@ add_library(jamesdsp SHARED
     lsp_wrap_expander.cpp
     lsp_wrap_autogain.cpp
     lsp_wrap_loudcomp.cpp
+    lsp_wrap_mbcomp.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c
@@ -201,6 +210,7 @@ add_library(jamesdsp_static STATIC
     lsp_wrap_expander.cpp
     lsp_wrap_autogain.cpp
     lsp_wrap_loudcomp.cpp
+    lsp_wrap_mbcomp.cpp
     lsp_wrap_limiter.cpp
     lsp_runtime_system_shim.cpp
     chain_modules.c

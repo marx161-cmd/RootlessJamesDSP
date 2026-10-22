@@ -176,6 +176,10 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         throw UnsupportedOperationException()
     }
 
+    override fun setMbCompInternal(enable: Boolean, params: FloatArray): Boolean {
+        throw UnsupportedOperationException()
+    }
+
     override fun setVdcInternal(enable: Boolean, vdc: String): Boolean {
         return JamesDspWrapper.setVdc(handle, enable, vdc)
     }

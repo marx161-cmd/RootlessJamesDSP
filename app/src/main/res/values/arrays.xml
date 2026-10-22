@@ -465,4 +465,83 @@
         <item>3</item>
         <item>4</item>
     </string-array>
+
+    <string-array name="mbcomp_mode_entries">
+        <item>@string/mbcomp_mode_classic</item>
+        <item>@string/mbcomp_mode_modern</item>
+        <item>@string/mbcomp_mode_lp</item>
+    </string-array>
+    <string-array name="mbcomp_mode_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="mbcomp_envb_entries">
+        <item>@string/mbcomp_envb_none</item>
+        <item>@string/mbcomp_envb_pink_bt</item>
+        <item>@string/mbcomp_envb_pink_mt</item>
+        <item>@string/mbcomp_envb_brown_bt</item>
+        <item>@string/mbcomp_envb_brown_mt</item>
+    </string-array>
+    <string-array name="mbcomp_envb_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="mbcomp_cm_entries">
+        <item>@string/mbcomp_cm_down</item>
+        <item>@string/mbcomp_cm_up</item>
+        <item>@string/mbcomp_cm_boost</item>
+    </string-array>
+    <string-array name="mbcomp_cm_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="mbcomp_scm_entries">
+        <item>@string/mbcomp_scm_peak</item>
+        <item>@string/mbcomp_scm_rms</item>
+        <item>@string/mbcomp_scm_lpf</item>
+        <item>@string/mbcomp_scm_sma</item>
+    </string-array>
+    <string-array name="mbcomp_scm_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+    <string-array name="mbcomp_scs_entries">
+        <item>@string/mbcomp_scs_middle</item>
+        <item>@string/mbcomp_scs_side</item>
+        <item>@string/mbcomp_scs_left</item>
+        <item>@string/mbcomp_scs_right</item>
+        <item>@string/mbcomp_scs_min</item>
+        <item>@string/mbcomp_scs_max</item>
+    </string-array>
+    <string-array name="mbcomp_scs_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+    <string-array name="mbcomp_sscs_entries">
+        <item>@string/mbcomp_sscs_lr</item>
+        <item>@string/mbcomp_sscs_rl</item>
+        <item>@string/mbcomp_sscs_ms</item>
+        <item>@string/mbcomp_sscs_sm</item>
+        <item>@string/mbcomp_sscs_min</item>
+        <item>@string/mbcomp_sscs_max</item>
+    </string-array>
+    <string-array name="mbcomp_sscs_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
 </resources>

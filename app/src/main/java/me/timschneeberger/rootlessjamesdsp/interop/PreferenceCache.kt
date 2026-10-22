@@ -23,12 +23,18 @@ class PreferenceCache(val context: Context) {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> get(@StringRes nameRes: Int, default: T, type: KClass<T>): T {
+    fun <T : Any> get(@StringRes nameRes: Int, default: T, type: KClass<T>): T =
+        get(context.getString(nameRes), default, type)
+
+    // String-key variant (same cache / change-detection semantics) for cards
+    // whose keys are generated rather than @string resources (the multiband
+    // compressor's 206 per-split / per-band keys, dsp_mbcomp_preferences.xml).
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> get(name: String, default: T, type: KClass<T>): T {
         if(selectedNamespace == null)
             throw IllegalStateException("No active namespace selected")
 
-        val name = context.getString(nameRes)
-        val current = uncachedGet(context, selectedNamespace!!, nameRes, default, type)
+        val current = uncachedGet(context, selectedNamespace!!, name, default, type)
         val unchanged = cache.containsKey(name) && cache[name] == current
         if(!unchanged && !changedNamespaces.contains(selectedNamespace)) {
             selectedNamespace?.let {
@@ -43,6 +49,9 @@ class PreferenceCache(val context: Context) {
 
     inline fun <reified T : Any> get(@StringRes nameRes: Int, default: T) =
         get(nameRes, default, T::class)
+
+    inline fun <reified T : Any> get(name: String, default: T) =
+        get(name, default, T::class)
 
     fun markChangesAsCommitted() {
         changedNamespaces.clear()
@@ -64,8 +73,16 @@ class PreferenceCache(val context: Context) {
             @StringRes nameRes: Int,
             default: T,
             type: KClass<T>
+        ): T = uncachedGet(context, namespace, context.getString(nameRes), default, type)
+
+        @Suppress("UNCHECKED_CAST")
+        fun <T : Any> uncachedGet(
+            context: Context,
+            namespace: String,
+            name: String,
+            default: T,
+            type: KClass<T>
         ): T {
-            val name = context.getString(nameRes)
             val prefs = getPreferences(context, namespace)
             val current: T = when(type) {
                 Boolean::class -> prefs.getBoolean(name, default as Boolean) as T

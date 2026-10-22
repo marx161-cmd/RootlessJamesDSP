@@ -97,6 +97,10 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val lcHClip = cache.get(R.string.key_loudcomp_hclip, false)
             val lcHCRange = cache.get(R.string.key_loudcomp_hcrange, 6f)
 
+            cache.select(Constants.PREF_MBCOMP)
+            val mbcEnabled = cache.get(R.string.key_mbcomp_enable, false)
+            val mbcParams = readMbCompParams()
+
             cache.select(Constants.PREF_AUTOGAIN)
             val autoGainEnabled = cache.get(R.string.key_autogain_enable, false)
             val autoGainLevel = cache.get(R.string.key_autogain_level, -23f)
@@ -175,6 +179,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                     Constants.PREF_GATE -> setGate(gateEnabled, gateOpenThreshold, gateCloseThreshold, gateAttack, gateRelease, gateHold, gateReduction)
                     Constants.PREF_EXPANDER -> setExpander(expEnabled, expMode, expThreshold, expRatio, expKnee, expAttack, expRelease, expHold)
                     Constants.PREF_LOUDCOMP -> setLoudComp(lcEnabled, lcInputGain, lcMode, lcStd, lcFft, lcApprox, lcVolume, lcHClip, lcHCRange)
+                    Constants.PREF_MBCOMP -> setMbComp(mbcEnabled, mbcParams)
                     Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled, autoGainLevel, autoGainLongPeriod, autoGainShortPeriod, autoGainDrift, autoGainSilence, autoGainMaxGain, autoGainMaxOn)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
@@ -241,6 +246,74 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     fun setLoudComp(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
     {
         return setLoudCompInternal(enable, inputGain, mode, std, fft, approx, volume, hclip, hcrange)
+    }
+
+    // Multiband compressor (LSP mb_compressor port, AIDL cmd 10106). `params`
+    // is the MBCOMP_NPARAMS-float configuration block in the lsp_wrap_mbcomp.h
+    // order; the remote engine prepends [band = 0, enabled].
+    fun setMbComp(enable: Boolean, params: FloatArray): Boolean
+    {
+        return setMbCompInternal(enable, params)
+    }
+
+    // Seekbars whose real port goes down to -inf dB (dry gain, release
+    // threshold) send -inf (MBCOMP_DB_MINUS_INF, the real default) when left at
+    // their minimum.
+    private fun dbOrMinusInf(v: Float, floor: Float): Float =
+        if (v <= floor) MBCOMP_DB_MINUS_INF else v
+
+    // Builds the 216-float configuration block documented in lsp_wrap_mbcomp.h
+    // from the PREF_MBCOMP namespace (must be selected). Defaults are the real
+    // plugin's metadata defaults, identical to lsp_mbcomp_default_config().
+    private fun readMbCompParams(): FloatArray {
+        val p = FloatArray(MBCOMP_NPARAMS)
+        // globals [0..9]
+        p[0] = cache.get(R.string.key_mbcomp_mode, "1").toFloat()          // 0 Classic / 1 Modern / 2 Linear phase
+        p[1] = cache.get(R.string.key_mbcomp_input_gain, 0f)
+        p[2] = cache.get(R.string.key_mbcomp_output_gain, 0f)
+        p[3] = dbOrMinusInf(cache.get(R.string.key_mbcomp_dry_gain, -72f), -72f)
+        p[4] = cache.get(R.string.key_mbcomp_wet_gain, 0f)
+        p[5] = cache.get(R.string.key_mbcomp_drywet, 100f)
+        p[6] = 0.2f   // "react": analyzer-only in the real plugin (display omitted), real default, not exposed
+        p[7] = 0f     // "shift" dB: same
+        p[8] = cache.get(R.string.key_mbcomp_envb, "1").toFloat()
+        p[9] = if (cache.get(R.string.key_mbcomp_ssplit, false)) 1f else 0f
+        // splits [10 + 2*s]
+        for (s in 0 until MBCOMP_SPLITS) {
+            val en = cache.get("mbcomp_split${s + 1}_enable", MBCOMP_SPLIT_ENABLE_DFL[s])
+            p[10 + 2 * s] = if (en) 1f else 0f
+            p[10 + 2 * s + 1] = cache.get("mbcomp_split${s + 1}_freq", MBCOMP_SPLIT_FREQ_DFL[s])
+        }
+        // bands [24 + 24*b]
+        for (b in 0 until MBCOMP_BANDS) {
+            val o = 24 + MBCOMP_BAND_PARAMS * b
+            val k = "mbcomp_b${b}_"
+            p[o + 0]  = if (cache.get(k + "enable", true)) 1f else 0f
+            p[o + 1]  = if (cache.get(k + "solo", false)) 1f else 0f
+            p[o + 2]  = if (cache.get(k + "mute", false)) 1f else 0f
+            p[o + 3]  = cache.get(k + "cm", "0").toFloat()
+            p[o + 4]  = cache.get(k + "scm", "1").toFloat()
+            p[o + 5]  = cache.get(k + "scs", "0").toFloat()
+            p[o + 6]  = cache.get(k + "sscs", "0").toFloat()
+            p[o + 7]  = cache.get(k + "sla", 0f)
+            p[o + 8]  = cache.get(k + "scr", 10f)
+            p[o + 9]  = cache.get(k + "scp", 0f)
+            p[o + 10] = if (cache.get(k + "sclc", false)) 1f else 0f
+            p[o + 11] = if (cache.get(k + "schc", false)) 1f else 0f
+            p[o + 12] = cache.get(k + "sclf", MBCOMP_BAND_LCF_DFL[b])
+            p[o + 13] = cache.get(k + "schf", MBCOMP_BAND_HCF_DFL[b])
+            p[o + 14] = cache.get(k + "al", -12f)
+            p[o + 15] = cache.get(k + "at", 20f)
+            p[o + 16] = dbOrMinusInf(cache.get(k + "rrl", -72f), -72f)
+            p[o + 17] = cache.get(k + "rt", 100f)
+            p[o + 18] = cache.get(k + "cr", 1f)
+            p[o + 19] = cache.get(k + "kn", -6f)
+            p[o + 20] = cache.get(k + "mk", 0f)
+            p[o + 21] = cache.get(k + "bth", -72f)
+            p[o + 22] = cache.get(k + "bsa", 6f)
+            p[o + 23] = cache.get(k + "ht", 0f)
+        }
+        return p
     }
 
     fun setVdc(enable: Boolean, vdcPath: String): Boolean
@@ -473,6 +546,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     protected abstract fun setExpanderInternal(enable: Boolean, mode: Int, threshold: Float, ratio: Float, knee: Float, attack: Float, release: Float, hold: Float): Boolean
     protected abstract fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
     protected abstract fun setLoudCompInternal(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
+    protected abstract fun setMbCompInternal(enable: Boolean, params: FloatArray): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean
@@ -498,6 +572,18 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     }
 
     companion object {
+        // Multiband compressor payload geometry: mirrors lsp_wrap_mbcomp.h
+        // (LSP_MBCOMP_*). 2 + 216 = 218 floats on the wire.
+        const val MBCOMP_BANDS = 8
+        const val MBCOMP_SPLITS = 7
+        const val MBCOMP_BAND_PARAMS = 24
+        const val MBCOMP_NPARAMS = 10 + 2 * MBCOMP_SPLITS + MBCOMP_BANDS * MBCOMP_BAND_PARAMS
+        const val MBCOMP_DB_MINUS_INF = -150f
+        private val MBCOMP_SPLIT_ENABLE_DFL = booleanArrayOf(false, true, false, true, false, true, false)
+        private val MBCOMP_SPLIT_FREQ_DFL = floatArrayOf(40f, 100f, 252f, 632f, 1587f, 3984f, 10000f)
+        private val MBCOMP_BAND_LCF_DFL = floatArrayOf(10f, 40f, 100f, 252f, 632f, 1587f, 3984f, 10000f)
+        private val MBCOMP_BAND_HCF_DFL = floatArrayOf(40f, 100f, 252f, 632f, 1587f, 3984f, 10000f, 20000f)
+
         private val dfMergeFreq = java.text.DecimalFormat("0.00", java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ENGLISH))
         private val dfMergeGain = java.text.DecimalFormat("0.000000", java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ENGLISH))
     }

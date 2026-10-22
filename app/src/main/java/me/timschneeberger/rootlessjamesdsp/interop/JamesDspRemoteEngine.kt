@@ -189,6 +189,17 @@ class JamesDspRemoteEngine(
         )) == AudioEffect.SUCCESS
     }
 
+    // Sends AIDL cmd 10106 (native: jamesdsp.c, vsize 872 block, "Multiband
+    // compressor: band, enabled, <216-float configuration block>" -- the real
+    // LSP mb_compressor port, lsp_mbcomp_configure(); layout documented in
+    // lsp_wrap_mbcomp.h and built by JamesDspBaseEngine.readMbCompParams()).
+    override fun setMbCompInternal(enable: Boolean, params: FloatArray): Boolean {
+        require(params.size == MBCOMP_NPARAMS) { "mbcomp payload must be $MBCOMP_NPARAMS floats" }
+        return effect.setParameterFloatArray(10106,
+            floatArrayOf(0f, if (enable) 1f else 0f) + params
+        ) == AudioEffect.SUCCESS
+    }
+
     // Sends AIDL cmd 10101 (native: jamesdsp.c, "Compressor: enabled,
     // threshold, ratio, knee, attack, release, hold" — routes to the real
     // LSP compressor via lsp_comp_configure()). Was cmd 115/1200, which
