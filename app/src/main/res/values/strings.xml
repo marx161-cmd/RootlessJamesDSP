@@ -262,6 +262,11 @@
     <string name="loudcomp_hclip">Hard clip above the compensated level</string>
     <string name="loudcomp_hcrange">Hard clip range</string>
 
+    <string name="desksend_enable">Desk send</string>
+    <string name="desksend_summary">Send the processed output to the desk speaker (Oppo) over the network. Phone output is muted while sending unless switched off.</string>
+    <string name="desksend_mute_local">Mute phone output while sending</string>
+    <string name="desksend_gain">Send gain</string>
+
     <string name="stereowide_enable">Soundstage wideness</string>
     <string name="stereowide_level">Wideness</string>
     <string name="stereowide_level_none">None</string>

@@ -183,6 +183,10 @@
     <string name="key_loudcomp_hclip" translatable="false">loudcomp_hclip</string>
     <string name="key_loudcomp_hcrange" translatable="false">loudcomp_hcrange</string>
 
+    <string name="key_desksend_enable" translatable="false">desksend_enable</string>
+    <string name="key_desksend_mute_local" translatable="false">desksend_mute_local</string>
+    <string name="key_desksend_gain" translatable="false">desksend_gain</string>
+
     <string name="key_mbcomp_enable" translatable="false">mbcomp_enable</string>
     <string name="key_mbcomp_mode" translatable="false">mbcomp_mode</string>
     <string name="key_mbcomp_input_gain" translatable="false">mbcomp_input_gain</string>

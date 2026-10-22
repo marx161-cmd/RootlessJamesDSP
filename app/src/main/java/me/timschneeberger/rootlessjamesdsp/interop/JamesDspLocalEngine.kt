@@ -180,6 +180,10 @@ class JamesDspLocalEngine(context: Context, callbacks: JamesDspWrapper.JamesDspC
         throw UnsupportedOperationException()
     }
 
+    override fun setDeskSendInternal(enable: Boolean, muteLocal: Boolean, gainDb: Float): Boolean {
+        throw UnsupportedOperationException()
+    }
+
     override fun setVdcInternal(enable: Boolean, vdc: String): Boolean {
         return JamesDspWrapper.setVdc(handle, enable, vdc)
     }

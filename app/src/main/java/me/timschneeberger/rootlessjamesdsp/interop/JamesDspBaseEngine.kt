@@ -97,6 +97,11 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
             val lcHClip = cache.get(R.string.key_loudcomp_hclip, false)
             val lcHCRange = cache.get(R.string.key_loudcomp_hcrange, 6f)
 
+            cache.select(Constants.PREF_DESKSEND)
+            val dsEnabled = cache.get(R.string.key_desksend_enable, false)
+            val dsMuteLocal = cache.get(R.string.key_desksend_mute_local, true)
+            val dsGain = cache.get(R.string.key_desksend_gain, 0f)
+
             cache.select(Constants.PREF_MBCOMP)
             val mbcEnabled = cache.get(R.string.key_mbcomp_enable, false)
             val mbcParams = readMbCompParams()
@@ -180,6 +185,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
                     Constants.PREF_EXPANDER -> setExpander(expEnabled, expMode, expThreshold, expRatio, expKnee, expAttack, expRelease, expHold)
                     Constants.PREF_LOUDCOMP -> setLoudComp(lcEnabled, lcInputGain, lcMode, lcStd, lcFft, lcApprox, lcVolume, lcHClip, lcHCRange)
                     Constants.PREF_MBCOMP -> setMbComp(mbcEnabled, mbcParams)
+                    Constants.PREF_DESKSEND -> setDeskSend(dsEnabled, dsMuteLocal, dsGain)
                     Constants.PREF_AUTOGAIN -> setAutoGain(autoGainEnabled, autoGainLevel, autoGainLongPeriod, autoGainShortPeriod, autoGainDrift, autoGainSilence, autoGainMaxGain, autoGainMaxOn)
                     Constants.PREF_COMPANDER -> setCompander(compEnabled, compThreshold, compRatio, compKnee, compAttack, compRelease, compHold)
                     Constants.PREF_BASS -> setBassBoost(bassEnabled, bassMaxGain)
@@ -246,6 +252,16 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     fun setLoudComp(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
     {
         return setLoudCompInternal(enable, inputGain, mode, std, fft, approx, volume, hclip, hcrange)
+    }
+
+    // Desk send (post-chain output tap, AIDL cmd 10107): the engine copies its
+    // final output (after post gain + limiter) into a shared ring file that a
+    // Termux sender ships to the desk speaker; muteLocal zeroes the phone's own
+    // output after the copy (track volume is applied BEFORE the effect, so
+    // phone volume 0 would silence the tap too).
+    fun setDeskSend(enable: Boolean, muteLocal: Boolean, gainDb: Float): Boolean
+    {
+        return setDeskSendInternal(enable, muteLocal, gainDb)
     }
 
     // Multiband compressor (LSP mb_compressor port, AIDL cmd 10106). `params`
@@ -547,6 +563,7 @@ abstract class JamesDspBaseEngine(val context: Context, val callbacks: JamesDspW
     protected abstract fun setAutoGainInternal(enable: Boolean, level: Float, longPeriod: Float, shortPeriod: Float, drift: Float, silence: Float, maxGain: Float, maxGainOn: Boolean): Boolean
     protected abstract fun setLoudCompInternal(enable: Boolean, inputGain: Float, mode: Int, std: Int, fft: Int, approx: Int, volume: Float, hclip: Boolean, hcrange: Float): Boolean
     protected abstract fun setMbCompInternal(enable: Boolean, params: FloatArray): Boolean
+    protected abstract fun setDeskSendInternal(enable: Boolean, muteLocal: Boolean, gainDb: Float): Boolean
     protected abstract fun setVdcInternal(enable: Boolean, vdc: String): Boolean
     protected abstract fun setConvolverInternal(enable: Boolean, impulseResponse: FloatArray, irChannels: Int, irFrames: Int, irCrc: Int): Boolean
     protected abstract fun setGraphicEqInternal(enable: Boolean, bands: String): Boolean

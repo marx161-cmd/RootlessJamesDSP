@@ -191,3 +191,29 @@ Everything below is committed + pushed; nothing is uncommitted in any of the fou
   standalone (no HAL impact) but load the phone CPU ~1 min.
 - Scope records: `SCOPE.md` entries 2026-10-22 ~12:40 / ~13:00 / ~13:25; ShaderEditor `scope.md`
   ~13:40 / ~13:55; shader-backdrop `scope.md` ~14:05.
+
+## 12. 2026-10-23 — Desk send live; OTA-ready (supersedes §11's checklist)
+
+All §11 checklist items are done (listen tests passed by the user on 2026-10-22, bench row filled,
+shaders judged). Added on top, user's add-on before the OTA — **Desk send**: the Pixel's processed
+output goes to the Oppo desk speaker, mixed in the Oppo's pulseaudio next to comrade's stream.
+SCOPE.md entries 2026-10-22 ~23:45 and 2026-10-23 ~00:05. Pieces and where they live:
+`~/homelab/crDroid/vendor/JamesDSP/tools/desk-send/README.md` (table).
+
+- **Phone right now (RAM-only, reboot reverts to the 2026-10-10 OTA `e041d142…`):** full
+  `fefe3dd8…` bind-mounted; JDSP app = rootFdroid arm64 with the Desk send card (installed
+  23:42, sha `4965e74d…`, ledger-tracked); sender `~/bin/jdsp-tap-send` running from
+  `~/.termux/boot/70-jdsp-tap-send` (target in `~/.config/jdsp-tap-send.env`, Oppo Tailscale
+  `100.93.167.83:1237`); Oppo `~/bin/listen-pixel` running, boot `21-listen-pixel.sh`.
+- **Commits:** engine `8b6fecf` (push `private fft-x2-batched-convolver:main`); app: this
+  commit (push `private master:main`); vendor: see `git log` (push `private HEAD:master`) --
+  Soong slot `.a` `d1689c18…`, release full `fefe3dd8…` / audio `80c983b6…` (audio-only has no
+  tap code, `#if JDSP_LUA_BRIDGE`).
+- **What the OTA bakes now:** §11's list + the tap. Same bake step; promote the rootFdroid APK
+  above and ShaderEditor v110. Queue entry: `docs-consolidated/70-crdroid-rom.md`.
+- **Gotchas:** the HAL cannot create files in the app's `files/` dir (DAC, not SELinux: the HAL
+  domain is permissive) -- `tap.bin` is pre-created by the Termux boot hook; `strings` on the
+  LTO `.a` shows nothing, check the linked `.so`; Oppo over Tailscale ssh (`oppo-usb` alias)
+  timed out all evening although `tailscale status` showed it active -- the USB-tether IP with
+  the `id_ed25519_oppo_usb` key and `BatchMode=yes` works without prompting.
+- **Open:** publish decision (which forks go public); the OTA itself (user says when).

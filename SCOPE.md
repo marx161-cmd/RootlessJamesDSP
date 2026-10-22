@@ -396,3 +396,14 @@ Latency for phone sounds at the speaker ≈ the comrade path's (~1.1 s, Bluetoot
 fine for music/notifications, not for anything that must match the phone's screen.
 Order: engine + vendor (bind-mount swap + listen), app APK, Pixel sender, Oppo receiver;
 THEN the OTA bake (this lands in the Soong slot .a).
+
+## 2026-10-23 ~00:05 — Desk send LIVE (user: "works"); two deviations from the ~23:45 entry
+
+1. No silence filling in the sender: ffplay already plays silence on underrun and resumes on
+   the next packet, so `jdsp-tap-send` forwards real frames only (nothing while idle/disabled).
+2. The HAL (uid audioserver) cannot CREATE files in the app's `files/` dir (755 system:system);
+   the Pixel boot hook `~/.termux/boot/70-jdsp-tap-send` (runs as system) pre-creates
+   `tap.bin` 0666 before starting the sender. First attempt failed exactly there.
+Verified: ring header seq/48000 Hz/flags 3 while VLC played, sender 6016 packets, Oppo pulse
+second sink-input live on :1237; user heard it on the desk speaker. Card sits under "Output
+control". Phone media volume still scales the desk level (track volume is pre-effect).

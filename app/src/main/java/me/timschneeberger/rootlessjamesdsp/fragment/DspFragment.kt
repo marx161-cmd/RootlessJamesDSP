@@ -77,6 +77,10 @@ class DspFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListen
                     R.xml.dsp_output_control_preferences
                 ))
             .replace(
+                R.id.card_desksend, PreferenceGroupFragment.newInstance(Constants.PREF_DESKSEND,
+                    R.xml.dsp_desksend_preferences
+                ))
+            .replace(
                 R.id.card_loudcomp, PreferenceGroupFragment.newInstance(Constants.PREF_LOUDCOMP,
                     R.xml.dsp_loudcomp_preferences
                 ))

@@ -189,6 +189,18 @@ class JamesDspRemoteEngine(
         )) == AudioEffect.SUCCESS
     }
 
+    // Sends AIDL cmd 10107 (native: jamesdsp.c, vsize 28 block, "Desk send:
+    // band, enabled, mute local, gain dB, 0, 0, 0" -- the post-chain output tap
+    // into /data/data/com.termux.jdsp/files/tap.bin, SCOPE 2026-10-22). The
+    // payload is EXACTLY 7 floats: the native dispatch keys on the 28-byte
+    // block size (the only free one), so the three trailing zeros are
+    // mandatory padding, not optional parameters.
+    override fun setDeskSendInternal(enable: Boolean, muteLocal: Boolean, gainDb: Float): Boolean {
+        return effect.setParameterFloatArray(10107, floatArrayOf(
+            0f, if (enable) 1f else 0f, if (muteLocal) 1f else 0f, gainDb, 0f, 0f, 0f
+        )) == AudioEffect.SUCCESS
+    }
+
     // Sends AIDL cmd 10106 (native: jamesdsp.c, vsize 872 block, "Multiband
     // compressor: band, enabled, <216-float configuration block>" -- the real
     // LSP mb_compressor port, lsp_mbcomp_configure(); layout documented in
