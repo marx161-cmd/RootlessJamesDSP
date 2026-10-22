@@ -1,3 +1,13 @@
+> **Fork note (marx161-cmd, 2026):** personal fork used as a platform-signed system app (`com.termux.jdsp`) on a
+> custom crDroid build for the Pixel 10 Pro. The engine submodule carries faithful lsp-plugins ports (Gate,
+> Compressor, Limiter, Expander, Autogain, Loudness Compensator, Multiband Compressor), each with its own
+> preference card here, plus a limiter on/off toggle and a "Desk send" output tap. The DSP runs in the vendor
+> audio HAL, not in this app: builds, benchmarks and the related repos (engine, vendor glue, the
+> [ShaderEditor](https://github.com/marx161-cmd/ShaderEditor) and
+> [termux-app](https://github.com/marx161-cmd/termux-app) forks the stack depends on) are in
+> [proprietary_vendor_JamesDSP/release/README.md](https://github.com/marx161-cmd/proprietary_vendor_JamesDSP/blob/master/release/README.md).
+> Proof of concept, not maintained. Upstream README follows.
+
 <h1 align="center">
   <img alt="Icon" width="75" src="https://github.com/thepbone/RootlessJamesDSP/blob/master/img/icons/web/icon-192.png?raw=true">
   <br>
