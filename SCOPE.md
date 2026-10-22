@@ -222,3 +222,28 @@ a module) needs no new slot, anything else does.
 
 Vendor: Soong slot = full .a with loud_comp (header + slot committed together, as on
 10-21); release/full 268de2a3, release/audio 14d9d52e.
+
+## 2026-10-22 ~03:20 — "meter decimation" replaced by Lua hook caching (full build)
+
+The profile of the full build showed the full-only cost is not the 108-band meter (not in
+the top of the profile at all) but the Lua per-sample tap: lua_bridge_process_sample did a
+lua_getglobal("process") (hash lookup + strcmp) for every sample, 48000x/s, only to find
+that the running script defines no process() -- lua_getglobal 1.14 % + luaV_finishget
+0.27 % + lua_bridge_process_sample 0.61 % of the HAL. Decimating the meter would have gained
+nothing measurable. Change: cache "script defines process() / process_block()" flags at
+every script (re)load and once per tick(); the per-sample and per-block taps return
+immediately when the flag is off. Behaviour unchanged for scripts that define the hooks
+(a hook defined later at runtime is picked up at the next tick, <= 1/60 s). Full-build
+re-bench follows; the audio-only build is unaffected (stubs).
+
+## 2026-10-22 ~03:45 — Lua hook caching measured: 77.0 -> 75.2 % (A/B, same preset)
+
+Bench of the full build with the user's current everything-on preset (gate, compander,
+expander, autogain, loud_comp FFT 4096, convolver, DDC, GEQ, LiveProg "Joe0Bloggs DRX10K
+compander-HR.eel"): previous full build 268de2a3 = 77.0 %, new build 5011f9eb = 75.2 % of one
+core, screen off, unplugged, 60 s each. The 27.7 % earlier tonight was a different preset
+(gainControl.eel, dynamics off), not comparable. Profile of the everything-on preset:
+NSEEL_code_execute (the LiveProg EEL interpreter running the DRX10K compander script) 56 %,
+convolver 14 %, everything else small; the EEL script alone costs about twice the rest of
+the chain. That is the user's script choice, not an engine issue, but worth knowing when
+reading HAL CPU numbers. Phone back on 5011f9eb.

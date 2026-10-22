@@ -40,6 +40,19 @@ static pthread_mutex_t g_lua_mutex = PTHREAD_MUTEX_INITIALIZER;
 // the lifecycle block in this file.
 static lua_State *g_L = NULL;
 static int g_script_loaded = 0;
+// Cached "does the script define process() / process_block()?" flags. Without
+// them the per-sample tap did a lua_getglobal("process") (hash lookup + strcmp)
+// 48000 times a second just to find out there is nothing to call: ~2 % of the
+// audio HAL process on the Pixel profile (lua_getglobal 1.14 %, luaV_finishget
+// 0.27 %, lua_bridge_process_sample 0.61 %). Refreshed on every script
+// (re)load and once per tick(), so a script that defines them later still works.
+static int g_has_process = 0;
+static int g_has_process_block = 0;
+static void refresh_hook_flags(void) {
+    if (!g_L || !g_script_loaded) { g_has_process = g_has_process_block = 0; return; }
+    lua_getglobal(g_L, "process");       g_has_process       = lua_isfunction(g_L, -1); lua_pop(g_L, 1);
+    lua_getglobal(g_L, "process_block"); g_has_process_block = lua_isfunction(g_L, -1); lua_pop(g_L, 1);
+}
 
 // ============================================================================
 // Timer system
@@ -1049,6 +1062,7 @@ int lua_bridge_init(void) {
         "end\n";
     luaL_dostring(g_L, default_script);
     g_script_loaded = 1;
+    refresh_hook_flags();
 
     // Reset timer list
     while (g_timers) {
@@ -1091,6 +1105,7 @@ int lua_bridge_load_script(const char *script) {
     if (!g_L) { pthread_mutex_unlock(&g_lua_mutex); return -1; }
 
     g_script_loaded = 0;
+    g_has_process = g_has_process_block = 0;
     g_script_error[0] = '\0';
 
     int rc = luaL_dostring(g_L, script);
@@ -1107,6 +1122,7 @@ int lua_bridge_load_script(const char *script) {
     }
 
     g_script_loaded = 1;
+    refresh_hook_flags();
     pthread_mutex_unlock(&g_lua_mutex);
     return 0;
 }
@@ -1165,6 +1181,7 @@ void lua_bridge_tick(const float *pcm_buffer, int num_samples) {
     }
 
     // Call tick()
+    refresh_hook_flags();
     lua_getglobal(g_L, "tick");
     if (lua_isfunction(g_L, -1)) {
         if (lua_pcall(g_L, 0, 0, 0) != LUA_OK) {
@@ -1184,9 +1201,9 @@ void lua_bridge_tick(const float *pcm_buffer, int num_samples) {
 // Calls script's process(spl0, spl1) as pure side-effect; audio passes
 // through unchanged. For audio modification, use process_block() instead.
 void lua_bridge_process_sample(float left, float right) {
-    if (!g_L || !g_script_loaded) return;
+    if (!g_L || !g_script_loaded || !g_has_process) return;
     lua_getglobal(g_L, "process");
-    if (!lua_isfunction(g_L, -1)) { lua_pop(g_L, 1); return; }
+    if (!lua_isfunction(g_L, -1)) { lua_pop(g_L, 1); g_has_process = 0; return; }
     lua_pushnumber(g_L, (double)left);
     lua_pushnumber(g_L, (double)right);
     if (lua_pcall(g_L, 2, 0, 0) != LUA_OK) {
@@ -1198,10 +1215,10 @@ void lua_bridge_process_sample(float left, float right) {
 
 // Per-block process callback
 int lua_bridge_process_block(float *buf_L, float *buf_R, int n) {
-    if (!g_L || !g_script_loaded) return 0;
+    if (!g_L || !g_script_loaded || !g_has_process_block) return 0;
 
     lua_getglobal(g_L, "process_block");
-    if (!lua_isfunction(g_L, -1)) { lua_pop(g_L, 1); return 0; }
+    if (!lua_isfunction(g_L, -1)) { lua_pop(g_L, 1); g_has_process_block = 0; return 0; }
 
     // Push buffer tables into Lua (jdsp.buffer_L, jdsp.buffer_R)
     lua_getglobal(g_L, "jdsp_buffer_L");
@@ -1398,6 +1415,7 @@ void lua_bridge_destroy(void) {
     }
 
     g_script_loaded = 0;
+    g_has_process = g_has_process_block = 0;
     g_last_tick_time = 0.0;
 
     pthread_mutex_unlock(&g_lua_mutex);
