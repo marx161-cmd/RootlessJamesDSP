@@ -407,3 +407,14 @@ THEN the OTA bake (this lands in the Soong slot .a).
 Verified: ring header seq/48000 Hz/flags 3 while VLC played, sender 6016 packets, Oppo pulse
 second sink-input live on :1237; user heard it on the desk speaker. Card sits under "Output
 control". Phone media volume still scales the desk level (track volume is pre-effect).
+
+## 2026-11-01 — Desk send: why it was silent for 1.5 days, and what covers it now
+- audioserver aborted 2026-10-31 21:05 (HAL hang in createAudioPatch). The HAL re-created the effect with
+  default state; the app's handle was dead and nothing re-sent the config: `JamesDspRemoteEngine.checkEngine()`
+  only runs inside `syncWithPreferences`, i.e. on a preference change. Desk send (and mute local) silently off.
+- Lever used (no app change): re-open session 0 through the exported `SessionReceiver`
+  (`OPEN_AUDIO_EFFECT_CONTROL_SESSION`, session 0) -> `clearSessions()` + fresh engine + full sync. Cybersyn's
+  minute watchdog now does this when tap.bin's header shows the tap off while audio plays.
+- Proper fix (NOT built, proposed): `AudioManager.registerAudioServerStateCallback` in the root service; on
+  `onAudioServerUp` clear caches + reboot every session engine + resync; plus an exported RESYNC action for
+  the heal task. Sender-side fix (socket pinned to Wi-Fi) is in vendor `tools/desk-send/jdsp_tap_send.c`.
